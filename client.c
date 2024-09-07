@@ -8,11 +8,18 @@
 #define MAX_SIZE 1024
  void downloadFile(int clientSocket, const char *fileName)
 {
+<<<<<<< HEAD
     // Send the file name to the server
     ssize_t sentBytes = send(clientSocket, fileName, strlen(fileName), 0);
     if (sentBytes < 0)
     {
         perror("Error sending file name to server");
+=======
+    int fileDescriptor = open(filePath, O_RDONLY);
+    if (fileDescriptor < 0)
+    {
+        perror("Error opening file");
+>>>>>>> origin
         return;
     }
 
@@ -32,6 +39,7 @@
         return;
     }
 
+<<<<<<< HEAD
     if (strcmp(response, "$READY$") != 0)
     {
         printf("Server is not ready to send the file.\n");
@@ -147,6 +155,47 @@ void viewFiles(int clientSocket)
     }
 }
 
+=======
+    char buffer[MAX_SIZE];
+    ssize_t bytesRead;
+    while ((bytesRead = read(fileDescriptor, buffer, sizeof(buffer))) > 0)
+    {
+        send(clientSocket, buffer, bytesRead, 0);
+    }
+
+    close(fileDescriptor);
+    printf("File data sent successfully.\n");
+
+    recv(clientSocket, response, sizeof(response) - 1, 0);
+    response[sizeof(response) - 1] = '\0';
+    printf("Server response: %s\n", response);
+}
+
+void viewFiles(int clientSocket)
+{ 
+    const char *operation = "3";
+    ssize_t sentBytes = send(clientSocket, operation, strlen(operation), 0);
+    if (sentBytes < 0)
+    {
+        perror("Error sending operation type to server");
+        return;
+    }
+ 
+    char response[MAX_SIZE];
+    ssize_t receivedBytes;
+    while ((receivedBytes = recv(clientSocket, response, sizeof(response) - 1, 0)) > 0)
+    {
+        response[receivedBytes] = '\0';
+        if (strcmp(response, "$END$") == 0)
+        {
+            break;
+        }
+        printf("%s", response);
+    }
+}
+
+
+>>>>>>> origin
 int main()
 {
     int clientSocket;
@@ -170,6 +219,7 @@ int main()
         return 1;
     }
 
+<<<<<<< HEAD
     char command[512];
 
     while(1)
@@ -422,3 +472,15 @@ int main()
 //     close(clientSocket);
 //     return 0;
 // }
+=======
+    char filePath[256];
+    printf("Enter file path to upload: ");
+    scanf("%s", filePath);
+
+    //uploadFile(clientSocket, filePath);
+    viewFiles(clientSocket);
+
+    close(clientSocket);
+    return 0;
+}
+>>>>>>> origin
