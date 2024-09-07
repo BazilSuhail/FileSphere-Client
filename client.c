@@ -47,6 +47,30 @@ void uploadFile(int clientSocket, const char *filePath)
     printf("Server response: %s\n", response);
 }
 
+void viewFiles(int clientSocket)
+{ 
+    const char *operation = "3";
+    ssize_t sentBytes = send(clientSocket, operation, strlen(operation), 0);
+    if (sentBytes < 0)
+    {
+        perror("Error sending operation type to server");
+        return;
+    }
+ 
+    char response[MAX_SIZE];
+    ssize_t receivedBytes;
+    while ((receivedBytes = recv(clientSocket, response, sizeof(response) - 1, 0)) > 0)
+    {
+        response[receivedBytes] = '\0';
+        if (strcmp(response, "$END$") == 0)
+        {
+            break;
+        }
+        printf("%s", response);
+    }
+}
+
+
 int main()
 {
     int clientSocket;
@@ -74,7 +98,8 @@ int main()
     printf("Enter file path to upload: ");
     scanf("%s", filePath);
 
-    uploadFile(clientSocket, filePath);
+    //uploadFile(clientSocket, filePath);
+    viewFiles(clientSocket);
 
     close(clientSocket);
     return 0;
