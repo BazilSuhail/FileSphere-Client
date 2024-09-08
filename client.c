@@ -6,7 +6,7 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 #define MAX_SIZE 1024
- void downloadFile(int clientSocket, const char *fileName)
+void downloadFile(int clientSocket, const char *fileName)
 {
     // Send the file name to the server
     ssize_t sentBytes = send(clientSocket, fileName, strlen(fileName), 0);
