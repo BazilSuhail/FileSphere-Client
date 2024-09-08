@@ -9,7 +9,7 @@
 
 void Sleeping()
 {
-    for(int i=0;i<10000;i++)
+    for(int i=0;i<100000;i++)
     {
         for(int j=0;j<10000;j++)
         {
@@ -240,7 +240,7 @@ int userValidation(int clientSocket,const char *status, const char *username, co
     // If status is SIGNUP, send "2" to server
     else if (strncmp(status, "SIGNUP",6) == 0)
     {
-        if(send(clientSocket, "2", 2, 0)<=0){Sleeping();
+        if(send(clientSocket, "2", 1, 0)<=0){Sleeping();
             printf("Error while Sending status to Server");
             return 0;
         }  
@@ -335,7 +335,8 @@ int main()
     if (strncmp(command, "$UPLOAD$", 8) == 0)
     { 
         const char *filePath = command + 8;
-        send(clientSocket, "2", 1, 0);Sleeping();
+        send(clientSocket, "2", 1, 0);
+        Sleeping();
         uploadFile(clientSocket, filePath);
     }
     else if (strncmp(command, "$DOWNLOAD$", 10) == 0)
