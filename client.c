@@ -140,7 +140,119 @@ void uploadFile(int clientSocket, const char *filePath)
     }
      close(fileDescriptor);
 }
+int Authentication(const char *input, char *status, char *username, char *password)
+{
+    int len = strlen(input);
+    if (len < 5 || input[0] != '$' || input[len - 1] != '$')
+    {
+        printf("Invalid command format. Must start and end with '$'.\n");
+        return 0; 
+    }
+    char *inputCopy = strdup(input);
+    inputCopy[len - 1] = '\0'; // Remove trailing $
+    inputCopy++;               // Skip the leading $
+    char *token = strtok(inputCopy, "$");
+    if (token == NULL)
+    {
+        printf("Invalid command format. Missing status.\n");
+        return 0;
+    }
+    strcpy(status, token); // First token is the status
+    if (strcmp(status, "LOGIN") != 0 && strcmp(status, "SIGNUP") != 0)
+    {
+        printf("Invalid status. Please specify 'LOGIN' or 'SIGNUP'.\n");
+        return 0;
+    }
+    // Get the username
+    token = strtok(NULL, "$");
+    if (token == NULL)
+    {
+        printf("Invalid command format. Missing username.\n");
+        return 0;
+    }
+    strcpy(username, token); // Second token is the username
 
+    // Get the password
+    token = strtok(NULL, "$");
+    if (token == NULL)
+    {
+        printf("Invalid command format. Missing password.\n");
+        return 0;
+    }
+    strcpy(password, token); // Third token is the password
+
+    // Ensure no extra data after password
+    token = strtok(NULL, "$");
+    if (token != NULL)
+    {
+        printf("Invalid command format. Too many fields.\n");
+        return 0;
+    }
+
+    return 1; // Return 1 for success
+}
+int userValidation(int clientSocket,const char *status, const char *username, const char *password)
+{
+    char buffer[1024] = {0};
+    if (strncmp(status, "LOGIN",5) == 0)
+    {
+        if(send(clientSocket, "1", 1, 0)<0){
+            printf("Error while Sending status to Server");
+            return 0;
+        }  
+        if(send(clientSocket, username, strlen(username), 0)<0){
+            printf("Error while Sending Username to Server");
+            return 0;
+        }
+        
+        // Send the password
+        if(send(clientSocket, password, strlen(password), 0)<0){
+            printf("Error while Sending Password to Server");
+            return 0;
+        }
+        if(recv(clientSocket, buffer, sizeof(buffer), 0)<0){
+            printf("Error while Receiving Authentication from server");
+            return 0;
+        }  // Wait for server's response
+
+        // Check server's response
+        if (strcmp(buffer, "1") == 0)
+        {
+            printf("Login successful! You can perform further operations.\n");
+        }
+        else if (strcmp(buffer, "3") == 0)
+        {
+            printf("Login failed! Username or password incorrect.\n");
+        }
+    }
+    // If status is SIGNUP, send "2" to server
+    else if (strncmp(status, "SIGNUP",6) == 0)
+    {
+        if(send(clientSocket, "2", 2, 0)<=0){
+            printf("Error while Sending status to Server");
+            return 0;
+        }  
+        if(send(clientSocket, username, strlen(username), 0)<0){
+            printf("Error while Sending Username to Server");
+            return 0;
+        }
+        if(send(clientSocket, password, strlen(password), 0)<0){
+            printf("Error while Sending Password to Server");
+            return 0;
+        }
+        if(recv(clientSocket, buffer, sizeof(buffer), 0)<0){
+            printf("Error while Receiving Authentication from server");
+            return 0;
+        }  
+
+        // Check server's response
+        if (strcmp(buffer, "2") == 0)
+        {
+            printf("Signup successful! You can perform further operations.\n");
+        }
+    }
+    return 1;
+}
 void viewFiles(int clientSocket)
 { 
     const char *operation = "3";
@@ -186,9 +298,21 @@ int main()
         close(clientSocket);
         return 1;
     }
+    char status[20], username[50], password[50];
+    int auth=1;
+    do{
+        char input[256];
+        printf("Enter your command: ");
+        fgets(input, sizeof(input), stdin);
+        input[strcspn(input, "\n")] = '\0';
+        
+        auth = Authentication(input, status, username, password);
+    }while(auth==0);
 
+    
+    auth = userValidation(clientSocket,status,username,password);
+    if(auth==0){return 1;}
     char command[512];
-
     printf("-> ");
     scanf("%s", command);
 
