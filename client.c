@@ -113,7 +113,41 @@ int main()
             }
             else if (fileOption == 2)
             {
-                printf("File download functionality is not yet implemented.\n");
+                // Prompt user for file name to download
+                char fileName[512];
+                printf("Enter the file name to download: ");
+                scanf("%s", fileName);
+
+                // Send the file name to the server
+                send(clientSocket, fileName, strlen(fileName), 0);
+
+                // Receive response from the server
+                char response[MAX_SIZE];
+                int bytesReceived = recv(clientSocket, response, sizeof(response) - 1, 0);
+                if (bytesReceived > 0)
+                {
+                    response[bytesReceived] = '\0'; // Null-terminate the response
+                    printf("Server response: %s\n", response);
+
+                    if (strcmp(response, "File found.") == 0)
+                    {
+                        // Proceed with file download logic if file is found
+                        printf("File '%s' is available for download.\n", fileName);
+                        // Additional download logic would go here (e.g., file transfer)
+                    }
+                    else if (strcmp(response, "File not found.") == 0)
+                    {
+                        printf("The requested file '%s' does not exist on the server.\n", fileName);
+                    }
+                    else
+                    {
+                        printf("Unexpected server response: %s\n", response);
+                    }
+                }
+                else
+                {
+                    printf("Failed to receive response from the server.\n");
+                }
             }
         }
     }
