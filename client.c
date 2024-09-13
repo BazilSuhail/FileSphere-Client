@@ -8,16 +8,36 @@
 
 #define MAX_SIZE 1024
 
+void receiveFileData(int clientSocket)
+{
+    char buffer[MAX_SIZE];
+    ssize_t bytesRead;
+
+    while ((bytesRead = recv(clientSocket, buffer, sizeof(buffer) - 1, 0)) > 0)
+    {
+        buffer[bytesRead] = '\0';
+        printf("%s", buffer);
+    }
+
+    if (bytesRead < 0)
+    {
+        perror("Error receiving data");
+    }
+    else
+    {
+        printf("\nFile data received successfully\n");
+    }
+}
 
 void downloadFile(int clientSocket, const char *fileName)
-{ 
+{
     ssize_t sentBytes = send(clientSocket, fileName, strlen(fileName), 0);
     if (sentBytes < 0)
     {
         perror("Error sending file name to server");
         return;
     }
- 
+
     char response[256];
     ssize_t receivedBytes = recv(clientSocket, response, sizeof(response) - 1, 0);
     if (receivedBytes < 0)
@@ -26,21 +46,18 @@ void downloadFile(int clientSocket, const char *fileName)
         return;
     }
     response[receivedBytes] = '\0';
- 
+
     if (strcmp(response, "No file found") == 0)
     {
         printf("Server response: No file found\n");
         return;
     }
 
-    // Ensure the server is ready to send the file by checking "$READY$"
-    /*if (strcmp(response, "$READY$") == 0)
+    printf("\n\n%s\n", response);
+
+    /*if (strcmp(response, "$READY$") != 0)
     {
-        printf("Server is ready to send the file.\n");
-    }
-    else
-    {
-        printf("Unexpected server response: %s\n", response);
+        printf("Server is not ready to send the file.\n");
         return;
     }*/
 
@@ -75,7 +92,6 @@ void downloadFile(int clientSocket, const char *fileName)
     close(fileDescriptor);
 }
 
-
 void uploadFile(int clientSocket, const char *filePath)
 {
     int fileDescriptor = open(filePath, O_RDONLY);
@@ -84,7 +100,7 @@ void uploadFile(int clientSocket, const char *filePath)
         perror("Error opening file");
         return;
     }
- 
+
     const char *fileName = strrchr(filePath, '/');
     fileName = fileName ? fileName + 1 : filePath;
 
@@ -112,7 +128,7 @@ void uploadFile(int clientSocket, const char *filePath)
         close(fileDescriptor);
         return;
     }*/
- 
+
     char buffer[MAX_SIZE];
     ssize_t bytesRead;
     while ((bytesRead = read(fileDescriptor, buffer, sizeof(buffer))) > 0)
@@ -144,17 +160,33 @@ int main()
         return 1;
     }
 
-    printf("Select an option:\n1. Register\n2. Authenticate\n");
-    int option;
-    scanf("%d", &option);
-    getchar();
-    send(clientSocket, &option, sizeof(option), 0);
+    printf("Type:\n$REGISTER$ for Signing Up\n$LOGIN$ for Signing In\n");
 
-    if (option == 1)
+    char command[512];
+
+    printf("-> ");
+    scanf("%s", command);
+
+    int auth_code;
+
+    if (strncmp(command, "$REGISTER$", 10) != 0 && strncmp(command, "$LOGIN$", 7) != 0)
     {
+        printf("Invalid command.\n");
+    }
+
+    // int option;
+    // scanf("%d", &option);
+    // getchar();
+    // send(clientSocket, &option, sizeof(option), 0);
+
+    if (strncmp(command, "$REGISTER$", 10) == 0)
+    {
+        auth_code = 1;
+        send(clientSocket, &auth_code, sizeof(auth_code), 0);
+
         // Register new user
         char userName[MAX_SIZE];
-        printf("Enter username: ");
+        printf("\nEnter username: ");
         scanf("%s", userName);
         send(clientSocket, userName, strlen(userName), 0);
 
@@ -163,11 +195,14 @@ int main()
         scanf("%s", password);
         send(clientSocket, password, strlen(password), 0);
 
-
-        printf("\n$ USER IS REGISTERED $\n");
+        printf("$ \"%s\"'s ACCOUNT HAS BEEN REGISTERED$\n", userName);
     }
-    else if (option == 2)
+
+    else if (strncmp(command, "$LOGIN$", 7) == 0)
     {
+        auth_code = 2;
+        send(clientSocket, &auth_code, sizeof(auth_code), 0);
+
         // Authenticate user
         char userName[MAX_SIZE];
         printf("Enter username: ");
@@ -186,17 +221,54 @@ int main()
 
         if (strcmp(response, "User found") == 0)
         {
-            printf("Select an option:\n1. Upload file\n2. Download file\n");
-            int fileOption;
+            // printf("Select an option:\n1. Upload file\n2. Download file\n");
+            printf("Type:\n$UPLOAD$<file-name> for Uploading Data/File | $DOWNLOAD$<file-name> for Downloading an Uploaded Data/File\n");
+
+            char upload_download_command[512];
+
+            printf("-> ");
+            scanf("%s", upload_download_command);
+
+            int option;
+
+            /*
+            // signal to server
+            if (strncmp(upload_download_command, "$UPLOAD$", 8) == 0)
+            {
+                option = 1;
+                send(clientSocket, &option, sizeof(option), 0);
+            }
+            else if (strncmp(upload_download_command, "$DOWNLOAD$", 10) == 0)
+            {
+                option = 2;
+                send(clientSocket, &option, sizeof(option), 0);
+            }
+            else if (strncmp(upload_download_command, "$VIEW$", 6) == 0)
+            {
+                option = 3;
+                send(clientSocket, &option, sizeof(option), 0);
+            }
+            else
+            {
+                printf("Invalid command.\n");
+            }*/
+
+            /*int fileOption;
             scanf("%d", &fileOption);
             getchar();
-            send(clientSocket, &fileOption, sizeof(fileOption), 0);
+            send(clientSocket, &fileOption, sizeof(fileOption), 0);*/
 
-            if (fileOption == 1)
+            if (strncmp(upload_download_command, "$UPLOAD$", 8) == 0)
             {
-                char fileName[MAX_SIZE];
-                printf("Enter file name: ");
-                scanf("%s", fileName);
+                option = 1;
+                send(clientSocket, &option, sizeof(option), 0);
+
+                // char fileName[MAX_SIZE];
+                // printf("Enter file name: ");
+                // scanf("%s", fileName);
+
+                const char *fileName = upload_download_command + 8;
+
                 send(clientSocket, fileName, strlen(fileName), 0);
 
                 // file name path , baad ke liyee
@@ -209,7 +281,7 @@ int main()
                 }
 
                 long fileSize;
-                printf("Enter file size: ");
+                printf("-> Enter file size: ");
                 scanf("%ld", &fileSize);
                 send(clientSocket, &fileSize, sizeof(fileSize), 0);
 
@@ -220,7 +292,7 @@ int main()
                 if (bytesRead > 0)
                 {
                     response[bytesRead] = '\0';
-                    printf("Server response: %s\n", response);
+                    printf("\nServer response: %s\n", response);
 
                     if (strcmp(response, "Out of space.") == 0)
                     {
@@ -243,12 +315,17 @@ int main()
                     printf("Failed to receive server response.\n");
                 }
             }
-            else if (fileOption == 2)
+
+            // Prompt user for file name to download
+            else if (strncmp(upload_download_command, "$DOWNLOAD$", 10) == 0)
             {
-                // Prompt user for file name to download
-                char fileName[512];
-                printf("Enter the file name to download: ");
-                scanf("%s", fileName);
+                option = 2;
+                send(clientSocket, &option, sizeof(option), 0);
+                // char fileName[512];
+                // printf("Enter the file name to download: ");
+                // scanf("%s", fileName);
+
+                const char *fileName = upload_download_command + 10;
 
                 // Send the file name to the server
                 send(clientSocket, fileName, strlen(fileName), 0);
@@ -281,6 +358,14 @@ int main()
                 {
                     printf("Failed to receive response from the server.\n");
                 }
+            }
+
+            else if (strncmp(upload_download_command, "$VIEW$", 6) == 0)
+            {
+                option = 3;
+                send(clientSocket, &option, sizeof(option), 0);
+
+                receiveFileData(clientSocket);
             }
         }
     }
