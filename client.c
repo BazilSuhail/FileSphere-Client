@@ -9,19 +9,15 @@
 
 void Sleeping()
 {
-    for(int i=0;i<100000;i++)
+    for (int i = 0; i < 100000; i++)
     {
-        for(int j=0;j<10000;j++)
-        {
-            for(int k=0;k<100;k++);
-        }
     }
 }
 
 void downloadFile(int clientSocket, const char *fileName)
 {
     ssize_t sentBytes = send(clientSocket, fileName, strlen(fileName), 0);
-    Sleeping();
+    // Sleeping();
     if (sentBytes < 0)
     {
         printf("Error sending file name to server");
@@ -42,8 +38,13 @@ void downloadFile(int clientSocket, const char *fileName)
         printf("Server response: No file found\n");
         return;
     }
-
-    if (strcmp(response, "$READY$") != 0)
+    char arr[8];
+    for (int i = 0; i < 7; i++)
+    {
+        arr[i] = response[i];
+    }
+    arr[7] = '\0';
+    if (strcmp(arr, "$READY$") != 0)
     {
         printf("Server is not ready to send the file.\n");
         return;
@@ -81,26 +82,25 @@ void downloadFile(int clientSocket, const char *fileName)
 }
 
 void uploadFile(int clientSocket, const char *filePath)
-{ 
+{
     int fileDescriptor = open(filePath, O_RDONLY);
     if (fileDescriptor < 0)
     {
         printf("Error opening file");
         return;
     }
- 
+
     const char *fileName = strrchr(filePath, '/');
     fileName = fileName ? fileName + 1 : filePath;
- 
+
     ssize_t sentBytes = send(clientSocket, fileName, strlen(fileName), 0);
-    Sleeping();
     if (sentBytes < 0)
     {
         printf("Error sending file name to server");
         close(fileDescriptor);
         return;
     }
- 
+
     char response[256];
     ssize_t receivedBytes = recv(clientSocket, response, sizeof(response) - 1, 0);
     if (receivedBytes < 0)
@@ -118,9 +118,11 @@ void uploadFile(int clientSocket, const char *filePath)
     }
     char buffer[MAX_SIZE];
     ssize_t bytesRead;
+    Sleeping();
     while ((bytesRead = read(fileDescriptor, buffer, sizeof(buffer))) > 0)
     {
-        ssize_t bytesSent = send(clientSocket, buffer, bytesRead, 0);Sleeping();
+        ssize_t bytesSent = send(clientSocket, buffer, bytesRead, 0);
+        // sleeping();
         if (bytesSent < 0)
         {
             printf("Error sending file data");
@@ -154,7 +156,7 @@ int Authentication(const char *input, char *status, char *username, char *passwo
     if (len < 5 || input[0] != '$' || input[len - 1] != '$')
     {
         printf("Invalid command format. Must start and end with '$'.\n");
-        return 0; 
+        return 0;
     }
     char *inputCopy = strdup(input);
     inputCopy[len - 1] = '\0'; // Remove trailing $
@@ -199,33 +201,43 @@ int Authentication(const char *input, char *status, char *username, char *passwo
 
     return 1; // Return 1 for success
 }
-int userValidation(int clientSocket,const char *status, const char *username, const char *password)
+int userValidation(int clientSocket, const char *status, const char *username, const char *password)
 {
     char buffer[1024] = {0};
-    if (strncmp(status, "LOGIN",5) == 0)
+    if (strncmp(status, "LOGIN", 5) == 0)
     {
-        if(send(clientSocket, "1", 1, 0)<0){
-            Sleeping();
+        if (send(clientSocket, "1", 1, 0) < 0)
+        {
+            // sleeping();
             printf("Error while Sending status to Server");
             return 0;
-        }  
-        printf("Status sent");
-        if(send(clientSocket, username, strlen(username), 0)<0){Sleeping();
+        }
+        perror("Status sent");
+
+        if (send(clientSocket, username, strlen(username), 0) < 0)
+        {
+            // sleeping();
             printf("Error while Sending Username to Server");
             return 0;
         }
-        printf("Username sent");
-        
+
+        perror("Username sent");
+
         // Send the password
-        if(send(clientSocket, password, strlen(password), 0)<0){Sleeping();
+        if (send(clientSocket, password, strlen(password), 0) < 0)
+        {
+            // sleeping();
             printf("Error while Sending Password to Server");
             return 0;
         }
-        if(recv(clientSocket, buffer, sizeof(buffer), 0)<0){
+        if (recv(clientSocket, buffer, sizeof(buffer), 0) < 0)
+        {
             printf("Error while Receiving Authentication from server");
             return 0;
-        }  // Wait for server's response
-        printf("Password sent");
+        } // Wait for server's response
+        fflush(stdout); // Flush the buffer to print immediately
+        perror("Password sent");
+        fflush(stdout); // Flush the buffer to print immediately
 
         // Check server's response
         if (strcmp(buffer, "1") == 0)
@@ -238,47 +250,59 @@ int userValidation(int clientSocket,const char *status, const char *username, co
         }
     }
     // If status is SIGNUP, send "2" to server
-    else if (strncmp(status, "SIGNUP",6) == 0)
+    else if (strncmp(status, "SIGNUP", 6) == 0)
     {
-        if(send(clientSocket, "2", 1, 0)<=0){Sleeping();
-            printf("Error while Sending status to Server");
-            return 0;
-        }  
-        printf("Status sent");
-        if(send(clientSocket, username, strlen(username), 0)<0){Sleeping();
-            printf("Error while Sending Username to Server");
+        if (send(clientSocket, "2", 1, 0) <= 0)
+        {
+            // sleeping();
+            perror("Error while Sending status to Server");
             return 0;
         }
-        printf("Username sent");
-        if(send(clientSocket, password, strlen(password), 0)<0){Sleeping();
+        fflush(stdout); // Flush the buffer to print immediately
+        perror("Status sent");
+        fflush(stdout); // Flush the buffer to print immediately
+        if (send(clientSocket, username, strlen(username), 0) < 0)
+        {
+            // sleeping();
+            perror("Error while Sending Username to Server");
+            return 0;
+        }
+        perror("Username sent");
+        if (send(clientSocket, password, strlen(password), 0) < 0)
+        {
+            // sleeping();
             printf("Error while Sending Password to Server");
             return 0;
         }
-        printf("Password sent");
+        perror("Password sent");
 
-        if(recv(clientSocket, buffer, sizeof(buffer), 0)<0){
+        if (recv(clientSocket, buffer, sizeof(buffer), 0) < 0)
+        {
             printf("Error while Receiving Authentication from server");
             return 0;
-        }  
+        }
 
         // Check server's response
         if (strcmp(buffer, "2") == 0)
         {
-            printf("Signup successful! You can perform further operations.\n");
+            fflush(stdout); // Flush the buffer to print immediately
+            perror("Signup successful! You can perform further operations.\n");
+            fflush(stdout); // Flush the buffer to print immediately
         }
     }
     return 1;
 }
 void viewFiles(int clientSocket)
-{ 
+{
     const char *operation = "3";
-    ssize_t sentBytes = send(clientSocket, operation, strlen(operation), 0);Sleeping();
+    ssize_t sentBytes = send(clientSocket, operation, strlen(operation), 0);
+    // sleeping();
     if (sentBytes < 0)
     {
         printf("Error sending operation type to server");
         return;
     }
- 
+
     char response[MAX_SIZE];
     ssize_t receivedBytes;
     while ((receivedBytes = recv(clientSocket, response, sizeof(response) - 1, 0)) > 0)
@@ -306,7 +330,7 @@ int main()
 
     serverAddr.sin_family = AF_INET;
     inet_pton(AF_INET, "127.0.0.1", &(serverAddr.sin_addr));
-    serverAddr.sin_port = htons(12345);
+    serverAddr.sin_port = htons(12346);
 
     if (connect(clientSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
     {
@@ -315,39 +339,46 @@ int main()
         return 1;
     }
     char status[20], username[50], password[50];
-    int auth=1;
-    do{
+    int auth = 1;
+    do
+    {
         char input[256];
         printf("Enter your command: ");
+        fflush(stdout); // Flush the buffer to print immediately
         fgets(input, sizeof(input), stdin);
-        input[strcspn(input, "\n")] = '\0';
-        
-        auth = Authentication(input, status, username, password);
-    }while(auth==0);
 
-    
-    auth = userValidation(clientSocket,status,username,password);
-    if(auth==0){return 1;}
+        input[strcspn(input, "\n")] = '\0';
+
+        auth = Authentication(input, status, username, password);
+    } while (auth == 0);
+
+    auth = userValidation(clientSocket, status, username, password);
+    if (auth == 0)
+    {
+        return 1;
+    }
     char command[512];
     printf("-> ");
     scanf("%s", command);
 
     if (strncmp(command, "$UPLOAD$", 8) == 0)
-    { 
+    {
         const char *filePath = command + 8;
         send(clientSocket, "2", 1, 0);
-        Sleeping();
+        ////sleeping();
         uploadFile(clientSocket, filePath);
     }
     else if (strncmp(command, "$DOWNLOAD$", 10) == 0)
-    { 
+    {
         const char *fileName = command + 10;
-        send(clientSocket, "1", 1, 0);Sleeping();
+        send(clientSocket, "1", 1, 0);
+        // sleeping();
         downloadFile(clientSocket, fileName);
     }
     else if (strncmp(command, "$VIEW$", 10) == 0)
     {
-        send(clientSocket, "3", 1, 0);Sleeping();
+        send(clientSocket, "3", 1, 0);
+        // sleeping();
         viewFiles(clientSocket);
     }
     else
