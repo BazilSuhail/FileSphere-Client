@@ -92,6 +92,76 @@ void downloadFile(int clientSocket, const char *fileName)
     close(fileDescriptor);
 }
 
+
+char *rle_encode(const char *filename, int *encoded_leng) {
+
+    FILE *fp = fopen(filename, "r");
+    if (fp == NULL) {
+        perror("Error opening input file");
+        return NULL;
+    }
+    char *data = NULL;
+    size_t buffer_size = 0;
+    size_t nread;
+
+    char *encoded = (char *)malloc(sizeof(char) * 1024);
+    int encoded_capacity = 1024;
+    int encoded_length = 0;
+    int len=0;
+    while ((nread = getline(&data, &buffer_size, fp)) != -1) {
+        // Process the line of data (e.g., remove newline)
+        data[strcspn(data, "\n")] = '\0';
+
+        for (int i = 0; i < strlen(data); i++) {
+            int count = 1;
+            while (i + 1 < strlen(data) && data[i + 1] == data[i]) {
+                count++;
+                i++;
+            }
+            len+=count+3;
+            if (encoded_length + 4 >= encoded_capacity) {
+                // Reallocate buffer if needed
+                encoded_capacity *= 2;
+                encoded = (char *)realloc(encoded, encoded_capacity);
+            }
+
+            if (count < 9) {
+                encoded[encoded_length++] = '*';
+                encoded[encoded_length++] = '0' + count;
+            } else if (count < 100) {
+                encoded[encoded_length++] = '#';
+                encoded[encoded_length++] = '0' + (count / 10);
+                encoded[encoded_length++] = '0' + (count % 10);
+            } else if (count < 1000) {
+                encoded[encoded_length++] = '@';
+                encoded[encoded_length++] = '0' + (count / 100);
+                encoded[encoded_length++] = '0' + ((count % 100) / 10);
+                encoded[encoded_length++] = '0' + (count % 10);
+            } else {
+                encoded[encoded_length++] = '$';
+                encoded[encoded_length++] = '0' + (count / 1000);
+                encoded[encoded_length++] = '0' + ((count % 1000) / 100);
+                encoded[encoded_length++] = '0' + ((count % 100) / 10);
+                encoded[encoded_length++] = '0' + (count % 10);
+            }
+
+            
+            encoded[encoded_length++] = data[i];
+
+        }
+
+        // Add newline character
+        encoded[encoded_length++] = '*';
+        encoded[encoded_length++] = '1';
+        encoded[encoded_length++] = '\n';
+    }
+
+    fclose(fp);
+
+    *encoded_leng = len;
+    return encoded;
+}
+
 void uploadFile(int clientSocket, const char *filePath)
 {
     int fileDescriptor = open(filePath, O_RDONLY);
@@ -130,14 +200,46 @@ void uploadFile(int clientSocket, const char *filePath)
     }*/
 
     char buffer[MAX_SIZE];
-    ssize_t bytesRead;
-    while ((bytesRead = read(fileDescriptor, buffer, sizeof(buffer))) > 0)
-    {
-        send(clientSocket, buffer, bytesRead, 0);
+    int Encoded_size;
+    char* encoded = rle_encode(fileName,&Encoded_size);
+    if(Encoded_size>MAX_SIZE){
+        int Quo=Encoded_size/MAX_SIZE;
+        int remain=Encoded_size%MAX_SIZE;
+        while(Quo>0){
+        if(send(clientSocket,encoded,MAX_SIZE,0)<0){
+            printf("Error in sendsing Data to server");
+            Quo--;
+            encoded+=MAX_SIZE;
+            }
+        }
+        if(send(clientSocket,encoded,remain,0)<0)
+            printf("Error in sendsing Data to server");
+        
+
     }
+    else{
+         if(send(clientSocket,encoded,Encoded_size,0)<0)
+            printf("Error in sendsing Data to server");
+        }
+    
 
     printf("File uploaded successfully.\n");
     close(fileDescriptor);
+}
+
+long getFileSize(const char *filename) {
+    FILE *fp = fopen(filename, "rb"); 
+    if (fp == NULL) {
+        perror("Error opening file");
+        return -1; 
+    }
+
+    fseek(fp, 0, SEEK_END); 
+    long size = ftell(fp);
+    rewind(fp);
+
+    fclose(fp);
+    return size;
 }
 
 int main()
@@ -279,10 +381,8 @@ int main()
                     close(clientSocket);
                     return 0;
                 }
-
-                long fileSize;
-                printf("-> Enter file size: ");
-                scanf("%ld", &fileSize);
+                long fileSize=getFileSize(fileName);
+                
                 send(clientSocket, &fileSize, sizeof(fileSize), 0);
 
                 printf("File name and size sent.\n");
