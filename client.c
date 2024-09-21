@@ -119,7 +119,7 @@ char *rle_encode(const char *filename, int *encoded_leng) {
                 i++;
             }
             len+=count+3;
-            if (encoded_length + 4 >= encoded_capacity) {
+            if (encoded_length + 9 >= encoded_capacity) {
                 // Reallocate buffer if needed
                 encoded_capacity *= 2;
                 encoded = (char *)realloc(encoded, encoded_capacity);
@@ -158,7 +158,7 @@ char *rle_encode(const char *filename, int *encoded_leng) {
 
     fclose(fp);
 
-    *encoded_leng = len;
+    *encoded_leng = encoded_length;
     return encoded;
 }
 
