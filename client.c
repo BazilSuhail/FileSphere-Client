@@ -7,6 +7,7 @@
 #include <fcntl.h>
 
 #define MAX_SIZE 1024
+#define PORT 8082
 
 void receiveFileData(int clientSocket)
 {
@@ -29,6 +30,69 @@ void receiveFileData(int clientSocket)
     }
 }
 
+
+char rle_decode(const char *encoded_data, int encoded_length, FILE* fp) {
+    char *decoded = (char *)malloc(sizeof(char) * encoded_length*2);
+    int i, j = 0;
+
+    for (i = 0; i < encoded_length; ) {
+        int count=0;
+        switch (encoded_data[i])
+        {
+            case '*':{
+                count=encoded_data[i+1]-'0';
+                i++;
+                break;
+            }
+            case '#':
+            {
+                count=encoded_data[i+1]-'0';
+                count =count*10+ (encoded_data[i + 2]-'0');
+                i += 2;
+                break;
+            }
+            case '@':{
+                count=encoded_data[i+1]-'0';
+                count =count*10+ (encoded_data[i + 2]-'0');
+                count =count*10+ (encoded_data[i + 3]-'0');
+                i += 3;
+                break;
+            }
+            
+            default:
+            {
+                count=encoded_data[i+1]-'0';
+                count =count*10+ (encoded_data[i + 2]-'0');
+                count =count*10+ (encoded_data[i + 3]-'0');
+                count =count*10+ (encoded_data[i + 4]-'0');
+                i += 4;
+                break;
+            }
+        }
+        i++;
+        for(int k=0;k<count;k++){
+            decoded[j++]=encoded_data[i];
+        }
+        i++;
+    }
+
+    
+    char * file_write=decoded;
+    if(j>1024)
+    {
+       int quo=j/1024;
+       j=j%1024;
+       int Buffer =1024;
+       for (int i = 0; i < quo; i++)
+       {
+          fwrite(file_write, sizeof(char), Buffer, fp);
+       }
+       file_write+=Buffer;
+    }
+    fwrite(file_write, sizeof(char), j, fp);
+    free(decoded);
+    return 'y';
+}
 void downloadFile(int clientSocket, const char *fileName)
 {
     ssize_t sentBytes = send(clientSocket, fileName, strlen(fileName), 0);
@@ -61,21 +125,21 @@ void downloadFile(int clientSocket, const char *fileName)
         return;
     }*/
 
-    int fileDescriptor = open(fileName, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (fileDescriptor < 0)
-    {
-        perror("Error creating file");
-        return;
-    }
+   
 
     char buffer[MAX_SIZE];
     ssize_t bytesRead;
+    FILE *fp = fopen(fileName, "w");
+    if (fp == NULL) {
+        perror("Error opening output file");
+        return NULL;
+    }
     while ((bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0)) > 0)
     {
-        if (write(fileDescriptor, buffer, bytesRead) != bytesRead)
+        if (rle_decode(buffer, bytesRead, fp) != 'y')
         {
             perror("Error writing to file");
-            close(fileDescriptor);
+            close(fp);
             return;
         }
     }
@@ -89,7 +153,7 @@ void downloadFile(int clientSocket, const char *fileName)
         printf("File downloaded and saved successfully.\n");
     }
 
-    close(fileDescriptor);
+    close(fp);
 }
 
 
@@ -202,20 +266,21 @@ void uploadFile(int clientSocket, const char *filePath)
     char buffer[MAX_SIZE];
     int Encoded_size;
     char* encoded = rle_encode(fileName,&Encoded_size);
+    if(send(clientSocket,&Encoded_size,sizeof(Encoded_size),0)<0){
+        printf("Error in Sending File size to server!!!!");
+    }
     if(Encoded_size>MAX_SIZE){
         int Quo=Encoded_size/MAX_SIZE;
         int remain=Encoded_size%MAX_SIZE;
         while(Quo>0){
         if(send(clientSocket,encoded,MAX_SIZE,0)<0){
-            printf("Error in sendsing Data to server");
+            printf("Error in sending Data to server");
             Quo--;
             encoded+=MAX_SIZE;
             }
         }
         if(send(clientSocket,encoded,remain,0)<0)
             printf("Error in sendsing Data to server");
-        
-
     }
     else{
          if(send(clientSocket,encoded,Encoded_size,0)<0)
@@ -253,7 +318,7 @@ int main()
 
     struct sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(8081);
+    serverAddr.sin_port = htons(PORT);
     serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
     if (connect(clientSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1)
