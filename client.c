@@ -4,19 +4,48 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#include <fcntl.h>
+#include <fcntl.h> 
 
+#define MAX_FILES 100
+#define MAX_FILENAME_SIZE 256
 #define MAX_SIZE 1024
+
 
 void receiveFileData(int clientSocket)
 {
     char buffer[MAX_SIZE];
     ssize_t bytesRead;
 
+    char fileNames[MAX_FILES][MAX_FILENAME_SIZE]; // Array to store file names
+    int fileSizes[MAX_FILES];                     // Array to store file sizes
+    int fileCount = 0;
+    int totalSize = 0;
+
     while ((bytesRead = recv(clientSocket, buffer, sizeof(buffer) - 1, 0)) > 0)
     {
-        buffer[bytesRead] = '\0';
-        printf("%s", buffer);
+        buffer[bytesRead] = '\0'; // Null terminate the received data
+
+        char *line = strtok(buffer, "\n"); // Split the buffer by new lines
+        while (line != NULL)
+        {
+            // Parse file name and size
+            char fileName[MAX_FILENAME_SIZE];
+            int fileSize;
+
+            // Scan the line and extract file name and size
+            if (sscanf(line, "%s - %d", fileName, &fileSize) == 2)
+            {
+                // Store file name and size in arrays
+                strncpy(fileNames[fileCount], fileName, MAX_FILENAME_SIZE);
+                fileSizes[fileCount] = fileSize;
+
+                // Sum the file size
+                totalSize += fileSize;
+                fileCount++;
+            }
+
+            line = strtok(NULL, "\n"); // Continue with the next line
+        }
     }
 
     if (bytesRead < 0)
@@ -25,7 +54,16 @@ void receiveFileData(int clientSocket)
     }
     else
     {
-        printf("\nFile data received successfully\n");
+        printf("\nFile data received successfully\n\n");
+
+        // Display the file names and sizes
+        for (int i = 0; i < fileCount; i++)
+        {
+            printf("File Name: %s - FileSize: %d\n", fileNames[i], fileSizes[i]);
+        }
+
+        // Display the total file size
+        printf("\nTotal File Size: %d\n\n", totalSize);
     }
 }
 
@@ -54,13 +92,6 @@ void downloadFile(int clientSocket, const char *fileName)
     }
 
     printf("\n\n%s\n", response);
-
-    /*if (strcmp(response, "$READY$") != 0)
-    {
-        printf("Server is not ready to send the file.\n");
-        return;
-    }*/
-
     int fileDescriptor = open(fileName, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fileDescriptor < 0)
     {
@@ -121,14 +152,7 @@ void uploadFile(int clientSocket, const char *filePath)
         return;
     }
     response[receivedBytes] = '\0';
-
-    /*if (strcmp(response, "$READY$") != 0)
-    {
-        printf("Server is not ready to receive the file.\n");
-        close(fileDescriptor);
-        return;
-    }*/
-
+ 
     char buffer[MAX_SIZE];
     ssize_t bytesRead;
     while ((bytesRead = read(fileDescriptor, buffer, sizeof(buffer))) > 0)
@@ -173,12 +197,7 @@ int main()
     {
         printf("Invalid command.\n");
     }
-
-    // int option;
-    // scanf("%d", &option);
-    // getchar();
-    // send(clientSocket, &option, sizeof(option), 0);
-
+ 
     if (strncmp(command, "$REGISTER$", 10) == 0)
     {
         auth_code = 1;
@@ -188,14 +207,34 @@ int main()
         char userName[MAX_SIZE];
         printf("\nEnter username: ");
         scanf("%s", userName);
+
+        // Send the username to the server
         send(clientSocket, userName, strlen(userName), 0);
 
         char password[MAX_SIZE];
         printf("Enter password: ");
         scanf("%s", password);
+
+        // Send the password to the server
         send(clientSocket, password, strlen(password), 0);
 
-        printf("$ \"%s\"'s ACCOUNT HAS BEEN REGISTERED$\n", userName);
+        // Receive the signal from the server (0 for already exists, 1 for newly created)
+        int userExists;
+        recv(clientSocket, &userExists, sizeof(userExists), 0);
+
+        // Display appropriate message based on the signal
+        if (userExists == 1)
+        {
+            printf("$ \"%s\"'s ACCOUNT HAS BEEN REGISTERED$\n", userName);
+        }
+        else if (userExists == 0)
+        {
+            printf("$ ACCOUNT FOR \"%s\" ALREADY EXISTS$\n", userName);
+        }
+        else
+        {
+            printf("$ ERROR: Invalid response from server $\n");
+        }
     }
 
     else if (strncmp(command, "$LOGIN$", 7) == 0)
@@ -220,9 +259,8 @@ int main()
         printf("Server: %s\n", response);
 
         if (strcmp(response, "User found") == 0)
-        {
-            // printf("Select an option:\n1. Upload file\n2. Download file\n");
-            printf("Type:\n$UPLOAD$<file-name> for Uploading Data/File | $DOWNLOAD$<file-name> for Downloading an Uploaded Data/File\n");
+        { 
+            printf("\nAvailable Commands:\n\n$UPLOAD$<file-name> for Uploading Data/File\n$DOWNLOAD$<file-name> for Downloading an Uploaded Data/File\n\n");
 
             char upload_download_command[512];
 
@@ -230,43 +268,11 @@ int main()
             scanf("%s", upload_download_command);
 
             int option;
-
-            /*
-            // signal to server
             if (strncmp(upload_download_command, "$UPLOAD$", 8) == 0)
             {
                 option = 1;
                 send(clientSocket, &option, sizeof(option), 0);
-            }
-            else if (strncmp(upload_download_command, "$DOWNLOAD$", 10) == 0)
-            {
-                option = 2;
-                send(clientSocket, &option, sizeof(option), 0);
-            }
-            else if (strncmp(upload_download_command, "$VIEW$", 6) == 0)
-            {
-                option = 3;
-                send(clientSocket, &option, sizeof(option), 0);
-            }
-            else
-            {
-                printf("Invalid command.\n");
-            }*/
-
-            /*int fileOption;
-            scanf("%d", &fileOption);
-            getchar();
-            send(clientSocket, &fileOption, sizeof(fileOption), 0);*/
-
-            if (strncmp(upload_download_command, "$UPLOAD$", 8) == 0)
-            {
-                option = 1;
-                send(clientSocket, &option, sizeof(option), 0);
-
-                // char fileName[MAX_SIZE];
-                // printf("Enter file name: ");
-                // scanf("%s", fileName);
-
+ 
                 const char *fileName = upload_download_command + 8;
 
                 send(clientSocket, fileName, strlen(fileName), 0);
@@ -300,6 +306,7 @@ int main()
                     }
                     else if (strcmp(response, "Error parsing config file.") == 0 ||
                              strcmp(response, "Error updating config file.") == 0 ||
+                             strcmp(response, "File already exists.") == 0 ||
                              strcmp(response, "Error writing to config file.") == 0)
                     {
                         printf("Server error: %s\n", response);
@@ -321,10 +328,6 @@ int main()
             {
                 option = 2;
                 send(clientSocket, &option, sizeof(option), 0);
-                // char fileName[512];
-                // printf("Enter the file name to download: ");
-                // scanf("%s", fileName);
-
                 const char *fileName = upload_download_command + 10;
 
                 // Send the file name to the server
