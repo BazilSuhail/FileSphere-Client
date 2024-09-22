@@ -1,4 +1,4 @@
-CC = gcc
+sCC = gcc
 
 TARGET = client.exe
 
