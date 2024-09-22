@@ -4,11 +4,165 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#include <fcntl.h> 
+#include <fcntl.h>
 
 #define MAX_FILES 100
 #define MAX_FILENAME_SIZE 256
 #define MAX_SIZE 1024
+
+char *rle_encode(const char *filename, int *encoded_leng)
+{
+    FILE *fp = fopen(filename, "r");
+    if (fp == NULL)
+    {
+        perror("Error opening input file");
+        return NULL;
+    }
+
+    char *data = NULL;
+    size_t buffer_size = 0;
+    size_t nread;
+
+    char *encoded = (char *)malloc(sizeof(char) * 1024);
+    int encoded_capacity = 1024;
+    int encoded_length = 0;
+    int len = 0;
+
+    while ((nread = getline(&data, &buffer_size, fp)) != -1)
+    {
+        data[strcspn(data, "\n")] = '\0';
+
+        for (int i = 0; i < strlen(data); i++)
+        {
+            int count = 1;
+            while (i + 1 < strlen(data) && data[i + 1] == data[i])
+            {
+                count++;
+                i++;
+            }
+            len += count + 3;
+            if (encoded_length + 4 >= encoded_capacity)
+            {
+                encoded_capacity *= 2;
+                encoded = (char *)realloc(encoded, encoded_capacity);
+            }
+
+            if (count < 9)
+            {
+                encoded[encoded_length++] = '*';
+                encoded[encoded_length++] = '0' + count;
+            }
+            else if (count < 100)
+            {
+                encoded[encoded_length++] = '#';
+                encoded[encoded_length++] = '0' + (count / 10);
+                encoded[encoded_length++] = '0' + (count % 10);
+            }
+            else if (count < 1000)
+            {
+                encoded[encoded_length++] = '@';
+                encoded[encoded_length++] = '0' + (count / 100);
+                encoded[encoded_length++] = '0' + ((count % 100) / 10);
+                encoded[encoded_length++] = '0' + (count % 10);
+            }
+            else
+            {
+                encoded[encoded_length++] = '$';
+                encoded[encoded_length++] = '0' + (count / 1000);
+                encoded[encoded_length++] = '0' + ((count % 1000) / 100);
+                encoded[encoded_length++] = '0' + ((count % 100) / 10);
+                encoded[encoded_length++] = '0' + (count % 10);
+            }
+
+            encoded[encoded_length++] = data[i];
+        }
+
+        encoded[encoded_length++] = '*';
+        encoded[encoded_length++] = '1';
+        encoded[encoded_length++] = '\n';
+    }
+
+    fclose(fp);
+
+    FILE *encoded_file = fopen("encoded_data.txt", "w");
+    if (encoded_file == NULL)
+    {
+        perror("Error opening encoded data file");
+        free(encoded);
+        return NULL;
+    }
+    fwrite(encoded, sizeof(char), encoded_length, encoded_file);
+    fclose(encoded_file);
+
+    *encoded_leng = len;
+    return encoded;
+}
+
+char *rle_decode(const char *encoded_data, int encoded_length, const char *output_filename)
+{
+    int estimated_size = encoded_length * 900;
+    char *decoded = (char *)malloc(sizeof(char) * estimated_size);
+    if (decoded == NULL)
+    {
+        perror("Error allocating memory for decoded data");
+        return NULL;
+    }
+
+    int i = 0, j = 0;
+    while (i < encoded_length)
+    {
+        int count = 0;
+        switch (encoded_data[i])
+        {
+        case '*':
+            count = encoded_data[i + 1] - '0';
+            i += 2;
+            break;
+        case '#':
+            count = (encoded_data[i + 1] - '0') * 10 + (encoded_data[i + 2] - '0');
+            i += 3;
+            break;
+        case '@':
+            count = (encoded_data[i + 1] - '0') * 100 + (encoded_data[i + 2] - '0') * 10 + (encoded_data[i + 3] - '0');
+            i += 4;
+            break;
+        default:
+            count = (encoded_data[i + 1] - '0') * 1000 + (encoded_data[i + 2] - '0') * 100 +
+                    (encoded_data[i + 3] - '0') * 10 + (encoded_data[i + 4] - '0');
+            i += 5;
+            break;
+        }
+
+        if (j + count >= estimated_size)
+        {
+            estimated_size *= 2;
+            decoded = (char *)realloc(decoded, sizeof(char) * estimated_size);
+            if (decoded == NULL)
+            {
+                perror("Error reallocating memory for decoded data");
+                return NULL;
+            }
+        }
+
+        char ch = encoded_data[i++];
+        for (int k = 0; k < count; k++)
+        {
+            decoded[j++] = ch;
+        }
+    }
+
+    FILE *fp = fopen(output_filename, "w");
+    if (fp == NULL)
+    {
+        perror("Error opening output file");
+        free(decoded);
+        return NULL;
+    }
+    fwrite(decoded, sizeof(char), j, fp);
+    fclose(fp);
+
+    return decoded;
+}
 
 
 void receiveFileData(int clientSocket)
@@ -16,35 +170,29 @@ void receiveFileData(int clientSocket)
     char buffer[MAX_SIZE];
     ssize_t bytesRead;
 
-    char fileNames[MAX_FILES][MAX_FILENAME_SIZE]; // Array to store file names
-    int fileSizes[MAX_FILES];                     // Array to store file sizes
+    char fileNames[MAX_FILES][MAX_FILENAME_SIZE];
+    int fileSizes[MAX_FILES];
     int fileCount = 0;
     int totalSize = 0;
 
     while ((bytesRead = recv(clientSocket, buffer, sizeof(buffer) - 1, 0)) > 0)
     {
-        buffer[bytesRead] = '\0'; // Null terminate the received data
+        buffer[bytesRead] = '\0';
 
-        char *line = strtok(buffer, "\n"); // Split the buffer by new lines
+        char *line = strtok(buffer, "\n");
         while (line != NULL)
         {
-            // Parse file name and size
             char fileName[MAX_FILENAME_SIZE];
             int fileSize;
-
-            // Scan the line and extract file name and size
             if (sscanf(line, "%s - %d", fileName, &fileSize) == 2)
             {
-                // Store file name and size in arrays
                 strncpy(fileNames[fileCount], fileName, MAX_FILENAME_SIZE);
                 fileSizes[fileCount] = fileSize;
-
-                // Sum the file size
                 totalSize += fileSize;
                 fileCount++;
             }
 
-            line = strtok(NULL, "\n"); // Continue with the next line
+            line = strtok(NULL, "\n");
         }
     }
 
@@ -56,16 +204,14 @@ void receiveFileData(int clientSocket)
     {
         printf("\nFile data received successfully\n\n");
 
-        // Display the file names and sizes
         for (int i = 0; i < fileCount; i++)
         {
             printf("File Name: %s - FileSize: %d\n", fileNames[i], fileSizes[i]);
         }
-
-        // Display the total file size
         printf("\nTotal File Size: %d\n\n", totalSize);
     }
 }
+
 
 void downloadFile(int clientSocket, const char *fileName)
 {
@@ -91,55 +237,63 @@ void downloadFile(int clientSocket, const char *fileName)
         return;
     }
 
-    printf("\n\n%s\n", response);
-    int fileDescriptor = open(fileName, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (fileDescriptor < 0)
+    printf("Receiving file data for: %s\n", fileName);
+
+    char *encoded_data = (char *)malloc(MAX_SIZE);
+    if (encoded_data == NULL)
     {
-        perror("Error creating file");
+        perror("Memory allocation failed");
         return;
     }
 
-    char buffer[MAX_SIZE];
+    ssize_t total_bytes_received = 0;
     ssize_t bytesRead;
-    while ((bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0)) > 0)
+
+    while ((bytesRead = recv(clientSocket, encoded_data + total_bytes_received, MAX_SIZE - total_bytes_received, 0)) > 0)
     {
-        if (write(fileDescriptor, buffer, bytesRead) != bytesRead)
-        {
-            perror("Error writing to file");
-            close(fileDescriptor);
-            return;
-        }
+        total_bytes_received += bytesRead;
+        fwrite(encoded_data + total_bytes_received - bytesRead, 1, bytesRead, stdout);
     }
 
     if (bytesRead < 0)
     {
         perror("Error receiving file data");
+        free(encoded_data);
+        return;
+    }
+
+    printf("\nDecoding and writing file: %s\n", fileName);
+    char *decoded_data = rle_decode(encoded_data, total_bytes_received, fileName);
+    if (decoded_data == NULL)
+    {
+        printf("Error decoding received data.\n");
     }
     else
     {
         printf("File downloaded and saved successfully.\n");
     }
 
-    close(fileDescriptor);
+    free(encoded_data);
+    free(decoded_data);
 }
 
 void uploadFile(int clientSocket, const char *filePath)
 {
-    int fileDescriptor = open(filePath, O_RDONLY);
-    if (fileDescriptor < 0)
+    int encoded_length;
+    char *encoded = rle_encode(filePath, &encoded_length);
+    if (encoded == NULL)
     {
-        perror("Error opening file");
+        perror("Error encoding file");
         return;
     }
 
     const char *fileName = strrchr(filePath, '/');
     fileName = fileName ? fileName + 1 : filePath;
-
     ssize_t sentBytes = send(clientSocket, fileName, strlen(fileName), 0);
     if (sentBytes < 0)
     {
         perror("Error sending file name to server");
-        close(fileDescriptor);
+        free(encoded);
         return;
     }
 
@@ -148,20 +302,41 @@ void uploadFile(int clientSocket, const char *filePath)
     if (receivedBytes < 0)
     {
         perror("Error receiving acknowledgment from server");
-        close(fileDescriptor);
+        free(encoded);
         return;
     }
     response[receivedBytes] = '\0';
- 
-    char buffer[MAX_SIZE];
-    ssize_t bytesRead;
-    while ((bytesRead = read(fileDescriptor, buffer, sizeof(buffer))) > 0)
+
+    FILE *encoded_file = fopen("encoded_data.txt", "r");
+    if (encoded_file == NULL)
     {
-        send(clientSocket, buffer, bytesRead, 0);
+        perror("Error opening encoded data file");
+        free(encoded);
+        return;
     }
 
-    printf("File uploaded successfully.\n");
-    close(fileDescriptor);
+    char buffer[1024];
+    while ((receivedBytes = fread(buffer, sizeof(char), sizeof(buffer), encoded_file)) > 0)
+    {
+        sentBytes = send(clientSocket, buffer, receivedBytes, 0);
+        if (sentBytes < 0)
+        {
+            perror("Error sending encoded file data");
+            break;
+        }
+    }
+    fclose(encoded_file);
+
+    if (sentBytes >= 0)
+    {
+        printf("Encoded file data uploaded successfully.\n");
+    }
+    if (remove("encoded_data.txt") != 0)
+    {
+        perror("Error deleting encoded_data.txt file");
+    }
+
+    free(encoded);
 }
 
 int main()
@@ -197,32 +372,25 @@ int main()
     {
         printf("Invalid command.\n");
     }
- 
+
     if (strncmp(command, "$REGISTER$", 10) == 0)
     {
         auth_code = 1;
         send(clientSocket, &auth_code, sizeof(auth_code), 0);
 
-        // Register new user
         char userName[MAX_SIZE];
         printf("\nEnter username: ");
         scanf("%s", userName);
-
-        // Send the username to the server
         send(clientSocket, userName, strlen(userName), 0);
 
         char password[MAX_SIZE];
         printf("Enter password: ");
         scanf("%s", password);
 
-        // Send the password to the server
         send(clientSocket, password, strlen(password), 0);
 
-        // Receive the signal from the server (0 for already exists, 1 for newly created)
         int userExists;
         recv(clientSocket, &userExists, sizeof(userExists), 0);
-
-        // Display appropriate message based on the signal
         if (userExists == 1)
         {
             printf("$ \"%s\"'s ACCOUNT HAS BEEN REGISTERED$\n", userName);
@@ -259,7 +427,7 @@ int main()
         printf("Server: %s\n", response);
 
         if (strcmp(response, "User found") == 0)
-        { 
+        {
             printf("\nAvailable Commands:\n\n$UPLOAD$<file-name> for Uploading Data/File\n$DOWNLOAD$<file-name> for Downloading an Uploaded Data/File\n\n");
 
             char upload_download_command[512];
@@ -272,7 +440,7 @@ int main()
             {
                 option = 1;
                 send(clientSocket, &option, sizeof(option), 0);
- 
+
                 const char *fileName = upload_download_command + 8;
 
                 send(clientSocket, fileName, strlen(fileName), 0);
@@ -323,30 +491,25 @@ int main()
                 }
             }
 
-            // Prompt user for file name to download
             else if (strncmp(upload_download_command, "$DOWNLOAD$", 10) == 0)
             {
                 option = 2;
                 send(clientSocket, &option, sizeof(option), 0);
                 const char *fileName = upload_download_command + 10;
 
-                // Send the file name to the server
                 send(clientSocket, fileName, strlen(fileName), 0);
 
-                // Receive response from the server
                 char response[MAX_SIZE];
                 int bytesReceived = recv(clientSocket, response, sizeof(response) - 1, 0);
                 if (bytesReceived > 0)
                 {
-                    response[bytesReceived] = '\0'; // Null-terminate the response
+                    response[bytesReceived] = '\0';
                     printf("Server response: %s\n", response);
 
                     if (strcmp(response, "File found.") == 0)
                     {
-                        // Proceed with file download logic if file is found
                         printf("File '%s' is available for download.\n", fileName);
                         downloadFile(clientSocket, fileName);
-                        // Additional download logic would go here (e.g., file transfer)
                     }
                     else if (strcmp(response, "File not found.") == 0)
                     {
