@@ -10,6 +10,21 @@
 #define MAX_FILENAME_SIZE 256
 #define MAX_SIZE 1024
 
+int getFileSize(const char *filename, long *fileSize) {
+    FILE *file = fopen(filename, "rb");
+    if (file == NULL) {
+        printf("Error: Unable to open file %s\n", filename);
+        return -1;
+    }
+
+    fseek(file, 0, SEEK_END);
+    *fileSize = ftell(file);
+    fclose(file);
+
+    return 0;
+}
+
+
 char *rle_encode(const char *filename, int *encoded_leng)
 {
     FILE *fp = fopen(filename, "r");
@@ -457,6 +472,9 @@ int main()
                 long fileSize;
                 printf("-> Enter file size: ");
                 scanf("%ld", &fileSize);
+                //getFileSize(fileName,&fileSize);
+                printf("File size: %ld bytes\n", fileSize);
+
                 send(clientSocket, &fileSize, sizeof(fileSize), 0);
 
                 printf("File name and size sent.\n");
