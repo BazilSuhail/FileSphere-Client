@@ -10,6 +10,21 @@
 #define MAX_FILENAME_SIZE 256
 #define MAX_SIZE 1024
 
+int getFileSize(const char *filename, long *fileSize) {
+    FILE *file = fopen(filename, "rb");
+    if (file == NULL) {
+        printf("Error: Unable to open file %s\n", filename);
+        return -1;
+    }
+
+    fseek(file, 0, SEEK_END);
+    *fileSize = ftell(file);
+    fclose(file);
+
+    return 0;
+}
+
+
 char *rle_encode(const char *filename, int *encoded_leng)
 {
     FILE *fp = fopen(filename, "r");
@@ -339,6 +354,101 @@ void uploadFile(int clientSocket, const char *filePath)
     free(encoded);
 }
 
+
+void deleteFileRequest(int clientSocket, const char *fileName)
+{
+    char serverResponse[1024];
+    ssize_t bytesRead;
+
+    if (send(clientSocket, fileName, strlen(fileName), 0) < 0)
+    {
+        perror("Error sending filename to server");
+        return;
+    }
+
+    printf("Filename '%s' sent to server.\n", fileName);
+
+    while ((bytesRead = recv(clientSocket, serverResponse, sizeof(serverResponse) - 1, 0)) > 0)
+    {
+        serverResponse[bytesRead] = '\0';
+        printf("Server response: %s\n", serverResponse);
+
+        if (strstr(serverResponse, "File is Found !!") || strstr(serverResponse, "File not Found") || strstr(serverResponse, "Error"))
+        {
+            break;
+        }
+    }
+
+    if (bytesRead < 0)
+    {
+        perror("Error receiving response from server");
+    }
+}
+
+void update_file(int clientSocket, const char *filePath)
+{
+    int encoded_length;
+    char *encoded = rle_encode(filePath, &encoded_length);
+    if (encoded == NULL)
+    {
+        perror("Error encoding file");
+        return;
+    }
+
+    const char *fileName = strrchr(filePath, '/');
+    fileName = fileName ? fileName + 1 : filePath;
+    ssize_t sentBytes = send(clientSocket, fileName, strlen(fileName), 0);
+    if (sentBytes < 0)
+    {
+        perror("Error sending file name to server");
+        free(encoded);
+        return;
+    }
+
+    char response[256];
+    ssize_t receivedBytes = recv(clientSocket, response, sizeof(response) - 1, 0);
+    if (receivedBytes < 0)
+    {
+        perror("Error receiving acknowledgment from server");
+        free(encoded);
+        return;
+    }
+    response[receivedBytes] = '\0';
+
+    FILE *encoded_file = fopen("encoded_data.txt", "r");
+    if (encoded_file == NULL)
+    {
+        perror("Error opening encoded data file");
+        free(encoded);
+        return;
+    }
+
+    char buffer[1024];
+    while ((receivedBytes = fread(buffer, sizeof(char), sizeof(buffer), encoded_file)) > 0)
+    {
+        sentBytes = send(clientSocket, buffer, receivedBytes, 0);
+        if (sentBytes < 0)
+        {
+            perror("Error sending encoded file data");
+            break;
+        }
+    }
+    fclose(encoded_file);
+
+    if (sentBytes >= 0)
+    {
+        printf("Encoded file data uploaded successfully.\n");
+    }
+
+    if (remove("encoded_data.txt") != 0)
+    {
+        perror("Error deleting encoded_data.txt file");
+    }
+
+    free(encoded);
+}
+
+
 int main()
 {
     int clientSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -428,7 +538,7 @@ int main()
 
         if (strcmp(response, "User found") == 0)
         {
-            printf("\nAvailable Commands:\n\n$UPLOAD$<file-name> for Uploading Data/File\n$DOWNLOAD$<file-name> for Downloading an Uploaded Data/File\n\n");
+            printf("\nAvailable Commands:\n\n$UPLOAD$<file-name> for Uploading Data/File\n$DOWNLOAD$<file-name> for Downloading an Uploaded Data/File\n$View$ for View Uploaded Files and there sizes\n$UPDATE$<file-name> for Updating and Existing/Uploaded File\n$DELETE$<file-name> for Deleting a Uploading File\n\n");
 
             char upload_download_command[512];
 
@@ -455,8 +565,14 @@ int main()
                 }
 
                 long fileSize;
+                long anotherfileSize;
+
+                getFileSize(fileName,&anotherfileSize);
+                printf("File size: %ld bytes\n", anotherfileSize);
+
                 printf("-> Enter file size: ");
                 scanf("%ld", &fileSize);
+
                 send(clientSocket, &fileSize, sizeof(fileSize), 0);
 
                 printf("File name and size sent.\n");
@@ -532,6 +648,22 @@ int main()
                 send(clientSocket, &option, sizeof(option), 0);
 
                 receiveFileData(clientSocket);
+            }
+
+            else if (strncmp(upload_download_command, "$DELETE$", 8) == 0)
+            {
+                option = 4;
+                send(clientSocket, &option, sizeof(option), 0);
+                const char *fileName = upload_download_command + 8;
+                deleteFileRequest(clientSocket, fileName);
+            }
+
+            else if (strncmp(upload_download_command, "$UPDATE$", 8) == 0)
+            {
+                option = 5;
+                send(clientSocket, &option, sizeof(option), 0);
+                const char *fileName = upload_download_command + 8;
+                update_file(clientSocket, fileName);
             }
         }
     }
