@@ -9,10 +9,10 @@ This folder has a C program source code named `client.c`, This code is for a cli
 ### About Execution and build
 Commands which are used to run, build and clean the `.exe` of this C program are following:
 
-##### make: Execute this command in the terminal to compile/build the program.
-##### make clean:  Use this command to remove the existing executable.
-##### make run:  This command compiles and immediately runs the program.
-##### make clean run: This sequence will first remove the old executable, then compile, and finally run the program.
+`make` Execute this command in the terminal to compile/build the program.
+`make clean`  Use this command to remove the existing executable.
+`make run`  This command compiles and immediately runs the program.
+`make clean run` This sequence will first remove the old executable, then compile, and finally run the program.
 
 ### Tools Required
 - `gcc`: A widely used C compiler, part of the GNU Compiler Collection.
