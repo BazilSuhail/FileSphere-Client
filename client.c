@@ -7,7 +7,7 @@
 #include <fcntl.h>
 
 #define MAX_SIZE 1024
-#define PORT 8082
+#define PORT 8081
 
 void receiveFileData(int clientSocket)
 {
@@ -446,6 +446,9 @@ int main()
                     close(clientSocket);
                     return 0;
                 }
+                long val;
+                scanf("%ld",&val);
+
                 long fileSize=getFileSize(fileName);
                 
                 send(clientSocket, &fileSize, sizeof(fileSize), 0);
