@@ -446,11 +446,8 @@ int main()
                     close(clientSocket);
                     return 0;
                 }
-                long val;
-                scanf("%ld",&val);
-
                 long fileSize=getFileSize(fileName);
-                
+                sleep(1);
                 send(clientSocket, &fileSize, sizeof(fileSize), 0);
 
                 printf("File name and size sent.\n");
