@@ -1,7 +1,3 @@
-Your README structure is quite good, but I would suggest a few improvements to enhance its clarity, professionalism, and completeness. Here’s a refined version of your README content:
-
----
-
 # Client Program in C
 
 This folder contains a C program source file named `client.c`. This code implements a client-side application that allows users to manage files uploaded to a server and monitor the storage space used. It also includes a basic authentication mechanism.
