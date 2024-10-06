@@ -219,7 +219,17 @@ char *rle_encode(const char *filename, int *encoded_leng) {
         encoded[encoded_length++] = '1';
         encoded[encoded_length++] = '\n';
     }
+    FILE *encoded_file = fopen("encoded_data.txt", "w");
+    if (encoded_file == NULL)
+    {
+        perror("Error opening encoded data file");
+        free(encoded);
+        return NULL;
+    }
+    fwrite(encoded, sizeof(char), encoded_length, encoded_file);
+    fclose(encoded_file);
 
+    *encoded_leng = len;
     fclose(fp);
 
     *encoded_leng = encoded_length;
@@ -228,21 +238,21 @@ char *rle_encode(const char *filename, int *encoded_leng) {
 
 void uploadFile(int clientSocket, const char *filePath)
 {
-    int fileDescriptor = open(filePath, O_RDONLY);
-    if (fileDescriptor < 0)
+    int encoded_length;
+    char *encoded = rle_encode(filePath, &encoded_length);
+    if (encoded == NULL)
     {
-        perror("Error opening file");
+        perror("Error encoding file");
         return;
     }
 
     const char *fileName = strrchr(filePath, '/');
     fileName = fileName ? fileName + 1 : filePath;
-
     ssize_t sentBytes = send(clientSocket, fileName, strlen(fileName), 0);
     if (sentBytes < 0)
     {
         perror("Error sending file name to server");
-        close(fileDescriptor);
+        free(encoded);
         return;
     }
 
@@ -251,45 +261,41 @@ void uploadFile(int clientSocket, const char *filePath)
     if (receivedBytes < 0)
     {
         perror("Error receiving acknowledgment from server");
-        close(fileDescriptor);
+        free(encoded);
         return;
     }
     response[receivedBytes] = '\0';
 
-    /*if (strcmp(response, "$READY$") != 0)
+    FILE *encoded_file = fopen("encoded_data.txt", "r");
+    if (encoded_file == NULL)
     {
-        printf("Server is not ready to receive the file.\n");
-        close(fileDescriptor);
+        perror("Error opening encoded data file");
+        free(encoded);
         return;
-    }*/
-
-    char buffer[MAX_SIZE];
-    int Encoded_size;
-    char* encoded = rle_encode(fileName,&Encoded_size);
-    if(send(clientSocket,&Encoded_size,sizeof(Encoded_size),0)<0){
-        printf("Error in Sending File size to server!!!!");
     }
-    if(Encoded_size>MAX_SIZE){
-        int Quo=Encoded_size/MAX_SIZE;
-        int remain=Encoded_size%MAX_SIZE;
-        while(Quo>0){
-        if(send(clientSocket,encoded,MAX_SIZE,0)<0){
-            printf("Error in sending Data to server");
-            Quo--;
-            encoded+=MAX_SIZE;
-            }
-        }
-        if(send(clientSocket,encoded,remain,0)<0)
-            printf("Error in sendsing Data to server");
-    }
-    else{
-         if(send(clientSocket,encoded,Encoded_size,0)<0)
-            printf("Error in sendsing Data to server");
-        }
-    
 
-    printf("File uploaded successfully.\n");
-    close(fileDescriptor);
+    char buffer[1024];
+    while ((receivedBytes = fread(buffer, sizeof(char), sizeof(buffer), encoded_file)) > 0)
+    {
+        sentBytes = send(clientSocket, buffer, receivedBytes, 0);
+        if (sentBytes < 0)
+        {
+            perror("Error sending encoded file data");
+            break;
+        }
+    }
+    fclose(encoded_file);
+
+    if (sentBytes >= 0)
+    {
+        printf("Encoded file data uploaded successfully.\n");
+    }
+    if (remove("encoded_data.txt") != 0)
+    {
+        perror("Error deleting encoded_data.txt file");
+    }
+
+    free(encoded);
 }
 
 long getFileSize(const char *filename) {
