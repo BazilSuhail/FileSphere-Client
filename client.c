@@ -10,9 +10,11 @@
 #define MAX_FILENAME_SIZE 256
 #define MAX_SIZE 1024
 
-int getFileSize(const char *filename, long *fileSize) {
+int getFileSize(const char *filename, long *fileSize)
+{
     FILE *file = fopen(filename, "rb");
-    if (file == NULL) {
+    if (file == NULL)
+    {
         printf("Error: Unable to open file %s\n", filename);
         return -1;
     }
@@ -225,22 +227,26 @@ void receiveFileData(int clientSocket)
     }
 }
 
-void downloadFile(int clientSocket, const char *fileName) {
+void downloadFile(int clientSocket, const char *fileName)
+{
     ssize_t sentBytes = send(clientSocket, fileName, strlen(fileName), 0);
-    if (sentBytes < 0) {
+    if (sentBytes < 0)
+    {
         perror("Error sending file name to server");
         return;
     }
 
     char response[256];
     ssize_t receivedBytes = recv(clientSocket, response, sizeof(response) - 1, 0);
-    if (receivedBytes < 0) {
+    if (receivedBytes < 0)
+    {
         perror("Error receiving acknowledgment from server");
         return;
     }
     response[receivedBytes] = '\0';
 
-    if (strcmp(response, "No file found") == 0) {
+    if (strcmp(response, "No file found") == 0)
+    {
         printf("Server response: No file found\n");
         return;
     }
@@ -248,40 +254,47 @@ void downloadFile(int clientSocket, const char *fileName) {
     printf("Receiving file data for: %s\n", fileName);
 
     char *encoded_data = (char *)malloc(MAX_SIZE);
-    if (encoded_data == NULL) {
+    if (encoded_data == NULL)
+    {
         perror("Memory allocation failed");
         return;
     }
 
     ssize_t total_bytes_received = 0;
     ssize_t bytesRead;
-    
-    FILE *tempFile = fopen("tempfile", "w");  // Writing to a temporary file
-    if (tempFile == NULL) {
+
+    FILE *tempFile = fopen("tempfile", "w"); // Writing to a temporary file
+    if (tempFile == NULL)
+    {
         perror("Error opening temp file for writing");
         free(encoded_data);
         return;
     }
 
     // Receive the file in chunks
-    while ((bytesRead = recv(clientSocket, encoded_data + total_bytes_received, MAX_SIZE - total_bytes_received, 0)) > 0) {
-        fwrite(encoded_data + total_bytes_received, 1, bytesRead, tempFile);  // Write to temp file
+    while ((bytesRead = recv(clientSocket, encoded_data + total_bytes_received, MAX_SIZE - total_bytes_received, 0)) > 0)
+    {
+        fwrite(encoded_data + total_bytes_received, 1, bytesRead, tempFile); // Write to temp file
         total_bytes_received += bytesRead;
     }
 
     fclose(tempFile);
 
-    if (bytesRead < 0) {
+    if (bytesRead < 0)
+    {
         perror("Error receiving file data");
         free(encoded_data);
         return;
     }
 
     printf("\nDecoding and writing file: %s\n", fileName);
-    char *decoded_data = rle_decode(encoded_data, total_bytes_received, fileName);  // Decoding data and writing to final file
-    if (decoded_data == NULL) {
+    char *decoded_data = rle_decode(encoded_data, total_bytes_received, fileName); // Decoding data and writing to final file
+    if (decoded_data == NULL)
+    {
         printf("Error decoding received data.\n");
-    } else {
+    }
+    else
+    {
         printf("File downloaded and saved successfully.\n");
     }
 
@@ -444,8 +457,70 @@ void update_file(int clientSocket, const char *filePath)
     free(encoded);
 }
 
-void handleFileExistsResponse(int serverSocket,const char *fileName)
+void replace_file(int clientSocket, const char *filePath)
 { 
+    int encoded_length;
+    char *encoded = rle_encode(filePath, &encoded_length);
+    if (encoded == NULL)
+    {
+        perror("Error encoding file");
+        return;
+    }
+
+    // Notify the server that we're ready to send the file content
+    char response[256];
+    ssize_t receivedBytes = recv(clientSocket, response, sizeof(response) - 1, 0);
+    if (receivedBytes < 0)
+    {
+        perror("Error receiving acknowledgment from server");
+        free(encoded);
+        return;
+    }
+    response[receivedBytes] = '\0';
+
+    // Open the encoded file (assumed encoded data is saved in "encoded_data.txt")
+    FILE *encoded_file = fopen("encoded_data.txt", "r");
+    if (encoded_file == NULL)
+    {
+        perror("Error opening encoded data file");
+        free(encoded);
+        return;
+    }
+
+    // Send the encoded file content in chunks to the server
+    char buffer[1024];
+    ssize_t sentBytes;
+    while ((receivedBytes = fread(buffer, sizeof(char), sizeof(buffer), encoded_file)) > 0)
+    {
+        sentBytes = send(clientSocket, buffer, receivedBytes, 0);
+        if (sentBytes < 0)
+        {
+            perror("Error sending encoded file data");
+            break;
+        }
+    }
+
+    // Close the file after sending its content
+    fclose(encoded_file);
+
+    // Check if the file was successfully sent
+    if (sentBytes >= 0)
+    {
+        printf("Encoded file data Replaced successfully.\n");
+    }
+
+    // Remove the encoded file after successful transmission
+    if (remove("encoded_data.txt") != 0)
+    {
+        perror("Error deleting encoded_data.txt file");
+    }
+
+    // Free the allocated memory for the encoded data
+    free(encoded);
+}
+
+void handleFileExistsResponse(int serverSocket, const char *fileName)
+{
     // Prompt user for input (1 for Yes, 0 for No)
     char userInput[2];
     printf("\nFile already exists, would you like to replace the file in the destination? (Enter 1 for Yes, 0 for No): ");
@@ -453,11 +528,15 @@ void handleFileExistsResponse(int serverSocket,const char *fileName)
 
     // Send the user's input to the server
     send(serverSocket, userInput, 1, 0);
-     if (userInput[0] == '1') {
+    if (userInput[0] == '1')
+    {
         update_file(serverSocket, fileName); // Call function to update the file
     }
-    else {
-        printf("File replacement canceled.\n"); // Action when the user enters '0'
+    else
+    {
+        //printf("File replacement canceled.\n"); // Action when the user enters '0'
+
+        replace_file(serverSocket,fileName);
     }
 }
 
@@ -579,7 +658,7 @@ int main()
                 long fileSize;
                 long anotherfileSize;
 
-                getFileSize(fileName,&anotherfileSize);
+                getFileSize(fileName, &anotherfileSize);
                 printf("File size: %ld bytes\n", anotherfileSize);
 
                 printf("-> Enter file size: ");
@@ -604,10 +683,10 @@ int main()
                     {
                         printf("Server error: %s\n", response);
                     }
-                    else if (strcmp(response, "File already exists.") == 0 )
+                    else if (strcmp(response, "File already exists.") == 0)
                     {
-                        //printf("%s\n", response);
-                        handleFileExistsResponse(clientSocket,fileName);
+                        // printf("%s\n", response);
+                        handleFileExistsResponse(clientSocket, fileName);
                     }
                     else
                     {
