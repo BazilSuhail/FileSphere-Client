@@ -1,18 +1,18 @@
-#include "helper.h" 
+#include "helper.h"
 
-char* getFileSize(const char* fileName) {
-    FILE *file = fopen(fileName, "rb"); // Open in binary mode
-    if (file == NULL) {
+char *getFileSize(const char *fileName)
+{
+    FILE *file = fopen(fileName, "rb");
+    if (file == NULL)
+    {
         perror("Error opening file");
         return NULL;
     }
 
-    // Move to the end of the file
     fseek(file, 0L, SEEK_END);
-
-    // Get the file size
     long fileSize = ftell(file);
-    if (fileSize == -1) {
+    if (fileSize == -1)
+    {
         perror("Error getting file size");
         fclose(file);
         return NULL;
@@ -21,16 +21,70 @@ char* getFileSize(const char* fileName) {
     fclose(file);
 
     // Allocate memory for the size string
-    char *sizeStr = (char*)malloc(MAX_SIZE * sizeof(char));
-    if (sizeStr == NULL) {
+    char *sizeStr = (char *)malloc(MAX_SIZE * sizeof(char));
+    if (sizeStr == NULL)
+    {
         perror("Error allocating memory");
         return NULL;
     }
 
-    // Convert the file size to a string
     sprintf(sizeStr, "%ld", fileSize);
-
     return sizeStr;
+}
+
+int getDecodedFileSize(const char *filename)
+{
+    FILE *file = fopen(filename, "r");
+    if (file == NULL)
+    {
+        perror("Error opening file");
+        return -1;
+    }
+
+    int total_size = 0;
+    char ch;
+    while ((ch = fgetc(file)) != EOF)
+    {
+        int count = 0;
+        switch (ch)
+        {
+        case '*':                      // Single digit count
+            count = fgetc(file) - '0'; // Convert char to int
+            total_size += count;
+            fgetc(file); // Skip the character after the count (e.g., 'a' or '\n')
+            break;
+        case '#':                                                   // Two digit count
+            count = (fgetc(file) - '0') * 10 + (fgetc(file) - '0'); // Convert two chars to int
+            total_size += count;
+            fgetc(file); // Skip the character after the count (e.g., 'b' or '\n')
+            break;
+        case '@': // Three digit count
+            count = (fgetc(file) - '0') * 100 + (fgetc(file) - '0') * 10 + (fgetc(file) - '0');
+            total_size += count;
+            fgetc(file); // Skip the character after the count (e.g., 'c' or '\n')
+            break;
+        default:
+            if (ch == '\n')
+            {
+                total_size += 1; // Count newlines as part of the decoded data
+            }
+            else
+            {
+                // Handle four-digit counts
+                count = (ch - '0') * 1000 + (fgetc(file) - '0') * 100 +
+                        (fgetc(file) - '0') * 10 + (fgetc(file) - '0');
+                total_size += count;
+                fgetc(file); // Skip the character after the count
+            }
+            break;
+        }
+    }
+
+    fclose(file);
+
+    printf("\n file decoded :%d\n",total_size);
+    
+    return total_size;
 }
 
 char *rle_encode(const char *filename, int *encoded_leng)
@@ -123,7 +177,7 @@ char *rle_encode(const char *filename, int *encoded_leng)
 
 char *rle_decode(const char *encoded_data, int encoded_length, const char *output_filename)
 {
-    int estimated_size = encoded_length * 900;
+    int estimated_size = encoded_length;
     char *decoded = (char *)malloc(sizeof(char) * estimated_size);
     if (decoded == NULL)
     {
@@ -186,4 +240,3 @@ char *rle_decode(const char *encoded_data, int encoded_length, const char *outpu
 
     return decoded;
 }
-

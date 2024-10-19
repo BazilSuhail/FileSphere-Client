@@ -1,5 +1,7 @@
 #include "helper.h"
 
+#define PORT 8000
+
 void handle_Upload(int clientSocket, char *upload_download_command)
 {
     // int option = 1;
@@ -74,6 +76,7 @@ void handle_Downlaod(int clientSocket, char *upload_download_command)
 
     char response[MAX_SIZE];
     int bytesReceived = recv(clientSocket, response, sizeof(response) - 1, 0);
+
     if (bytesReceived > 0)
     {
         response[bytesReceived] = '\0';
@@ -132,7 +135,7 @@ int main()
 
     struct sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(8080);
+    serverAddr.sin_port = htons(PORT);
     serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
     if (connect(clientSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1)

@@ -47,27 +47,12 @@ void view_files(int clientSocket)
     }
 }
 
-void downloadFile(int clientSocket, const char *fileName)
+ void downloadFile(int clientSocket, const char *fileName)
 {
     ssize_t sentBytes = send(clientSocket, fileName, strlen(fileName), 0);
     if (sentBytes < 0)
     {
         perror("Error sending file name to server");
-        return;
-    }
-
-    char response[256];
-    ssize_t receivedBytes = recv(clientSocket, response, sizeof(response) - 1, 0);
-    if (receivedBytes < 0)
-    {
-        perror("Error receiving acknowledgment from server");
-        return;
-    }
-    response[receivedBytes] = '\0';
-
-    if (strcmp(response, "No file found") == 0)
-    {
-        printf("Server response: No file found\n");
         return;
     }
 
@@ -108,7 +93,10 @@ void downloadFile(int clientSocket, const char *fileName)
     }
 
     printf("\nDecoding and writing file: %s\n", fileName);
-    char *decoded_data = rle_decode(encoded_data, total_bytes_received, fileName); // Decoding data and writing to final file
+    int received_file_size = getDecodedFileSize("tempfile");
+    printf("\n%d\n",received_file_size);
+    
+    char *decoded_data = rle_decode(encoded_data, received_file_size, fileName); // Decoding data and writing to final file
     if (decoded_data == NULL)
     {
         printf("Error decoding received data.\n");

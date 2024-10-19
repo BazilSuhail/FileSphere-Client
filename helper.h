@@ -15,8 +15,10 @@
 #define MAX_SIZE 1024
 
 char* getFileSize(const char* fileName) ;
+int getDecodedFileSize(const char *fileName);
 char *rle_encode(const char *filename, int *encoded_leng);
 char *rle_decode(const char *encoded_data, int encoded_length, const char *output_filename);
+
 void view_files(int clientSocket);
 void downloadFile(int clientSocket, const char *fileName);
 void uploadFile(int clientSocket, const char *filePath);
