@@ -1,4 +1,4 @@
-#include "helper.h" 
+#include "helper.h"
 
 void view_files(int clientSocket)
 {
@@ -47,7 +47,7 @@ void view_files(int clientSocket)
     }
 }
 
- void downloadFile(int clientSocket, const char *fileName)
+void downloadFile(int clientSocket, const char *fileName)
 {
     ssize_t sentBytes = send(clientSocket, fileName, strlen(fileName), 0);
     if (sentBytes < 0)
@@ -68,15 +68,14 @@ void view_files(int clientSocket)
     ssize_t total_bytes_received = 0;
     ssize_t bytesRead;
 
-    FILE *tempFile = fopen("tempfile", "w"); // Writing to a temporary file
+    FILE *tempFile = fopen("tempfile", "w"); 
     if (tempFile == NULL)
     {
         perror("Error opening temp file for writing");
         free(encoded_data);
         return;
     }
-
-    // Receive the file in chunks
+ 
     while ((bytesRead = recv(clientSocket, encoded_data + total_bytes_received, MAX_SIZE - total_bytes_received, 0)) > 0)
     {
         fwrite(encoded_data + total_bytes_received, 1, bytesRead, tempFile);
@@ -94,8 +93,8 @@ void view_files(int clientSocket)
 
     printf("\nDecoding and writing file: %s\n", fileName);
     int received_file_size = getDecodedFileSize("tempfile");
-    printf("\n%d\n",received_file_size);
-    
+    //printf("\n%d\n", received_file_size);
+
     char *decoded_data = rle_decode(encoded_data, received_file_size, fileName); // Decoding data and writing to final file
     if (decoded_data == NULL)
     {
@@ -266,7 +265,7 @@ void update_file(int clientSocket, const char *filePath)
 }
 
 void replace_file(int clientSocket, const char *filePath)
-{ 
+{
     int encoded_length;
     char *encoded = rle_encode(filePath, &encoded_length);
     if (encoded == NULL)
@@ -333,17 +332,15 @@ void handleFileExistsResponse(int serverSocket, const char *fileName)
     char userInput[2];
     printf("\nFile already exists, would you like to replace the file in the destination? (Enter 1 for Yes, 0 for No): ");
     scanf("%1s", userInput);
-
-    // Send the user's input to the server
+ 
     send(serverSocket, userInput, 1, 0);
     if (userInput[0] == '1')
     {
-        update_file(serverSocket, fileName); // Call function to update the file
+        update_file(serverSocket, fileName); // function to update the file
     }
     else
     {
-        //printf("File replacement canceled.\n"); // Action when the user enters '0'
-
-        replace_file(serverSocket,fileName);
+        // printf("File replacement canceled.\n");  
+        replace_file(serverSocket, fileName);
     }
 }

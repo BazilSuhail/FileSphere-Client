@@ -48,42 +48,38 @@ int getDecodedFileSize(const char *filename)
         int count = 0;
         switch (ch)
         {
-        case '*':                      // Single digit count
-            count = fgetc(file) - '0'; // Convert char to int
+        case '*':
+            count = fgetc(file) - '0';
             total_size += count;
-            fgetc(file); // Skip the character after the count (e.g., 'a' or '\n')
+            fgetc(file);
             break;
-        case '#':                                                   // Two digit count
-            count = (fgetc(file) - '0') * 10 + (fgetc(file) - '0'); // Convert two chars to int
+        case '#':
+            count = (fgetc(file) - '0') * 10 + (fgetc(file) - '0');
             total_size += count;
-            fgetc(file); // Skip the character after the count (e.g., 'b' or '\n')
+            fgetc(file);
             break;
-        case '@': // Three digit count
+        case '@':
             count = (fgetc(file) - '0') * 100 + (fgetc(file) - '0') * 10 + (fgetc(file) - '0');
             total_size += count;
-            fgetc(file); // Skip the character after the count (e.g., 'c' or '\n')
+            fgetc(file);
             break;
         default:
             if (ch == '\n')
             {
-                total_size += 1; // Count newlines as part of the decoded data
+                total_size += 1;
             }
             else
             {
-                // Handle four-digit counts
-                count = (ch - '0') * 1000 + (fgetc(file) - '0') * 100 +
-                        (fgetc(file) - '0') * 10 + (fgetc(file) - '0');
+                count = (ch - '0') * 1000 + (fgetc(file) - '0') * 100 + (fgetc(file) - '0') * 10 + (fgetc(file) - '0');
                 total_size += count;
-                fgetc(file); // Skip the character after the count
+                fgetc(file);
             }
             break;
         }
     }
 
-    fclose(file);
-
-    printf("\n file decoded :%d\n",total_size);
-    
+    fclose(file); 
+    //printf("\n file decoded :%d\n", total_size); 
     return total_size;
 }
 
