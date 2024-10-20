@@ -1,27 +1,38 @@
-This folder has a C program source code named `client.c`, This code is for a client implementation in C for a client to look after his files uploaded to server and check for the storage he has used ,covering basic implementation of authentication in C. For this C code use make file to build it and then the C program will be compiled into `main.exe`. 
+# Client Program in C
 
-## Files Made
-- `server.c`: This is the source file containing the C source code of actual server.
-- `Makefile`: This file is used for building, cleaning and running the project.
+This folder contains a C program source file named `client.c`. This code implements a client-side application that allows users to manage files uploaded to a server and monitor the storage space used. It also includes a basic authentication mechanism.
 
-## How to build and Execute the code
+## Files
 
-### About Execution and build
-Commands which are used to run, build and clean the `.exe` of this C program are following:
+- **`client.c`**: The source code for the client-side application.
+- **`Makefile`**: Used to build, clean, and run the project.
 
-- `make` Execute this command in the terminal to compile/build the program.
-- `make clean`  Use this command to remove the existing executable.
-- `make run`  This command compiles and immediately runs the program.
-- `make clean run` This sequence will first remove the old executable, then compile, and finally run the program.
+## How to Build and Execute the Code
+
+### Build and Execution Commands
+
+The following commands are used to compile, clean, and run the executable of this C program:
+
+- **`make`**: Compiles and builds the program, generating the `client.exe` executable.
+- **`make clean`**: Removes the existing executable and any intermediate compiled files.
+- **`make run`**: Compiles the program (if necessary) and runs the executable. If the source files are unchanged and the executable exists, it directly runs the program.
+- **`make clean run`**: Cleans any previous builds, compiles the program, and then runs the executable.
 
 ### Tools Required
-- `gcc`: A widely used C compiler, part of the GNU Compiler Collection.
-- `make`: A build tool used to manage and automate the process of compiling code.
+
+- **`gcc`**: A popular C compiler, part of the GNU Compiler Collection.
+- **`make`**: A build tool for automating the process of compiling and managing dependencies.
+- **`libc6-dev`**: Development libraries and headers for the GNU C Library, essential for compiling C programs.
 
 ### Setup Instructions
-Before building the program, ensure that gcc and make are installed on your system. On a Debian-based system (e.g., Ubuntu), you can install them using the following commands:
 
-```sh
+Before building the program, ensure that the necessary build tools (compiler, make, libc6-dev) are installed on your system. On a Debian-based system (e.g., Ubuntu), you can install them using the following commands:
+
+```bash
 sudo apt-get update
-sudo apt-get install gcc make
+sudo apt-get install build-essential
 ```
+
+Once the tools are installed, navigate to the directory containing the `Makefile` and run the desired command (e.g., `make` or `make run`).
+
+---
