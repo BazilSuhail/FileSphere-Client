@@ -80,7 +80,7 @@ int getDecodedFileSize(const char *filename)
 
     fclose(file); 
     //printf("\n file decoded :%d\n", total_size); 
-    return total_size;
+    return total_size + 100;
 }
 
 char *rle_encode(const char *filename, int *encoded_leng)
