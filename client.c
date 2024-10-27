@@ -146,104 +146,111 @@ int main()
     printf("Type:\n$REGISTER$ for Signing Up\n$LOGIN$ for Signing In\n");
 
     char command[512];
-
-    printf("-> ");
-    scanf("%s", command);
-
+    int check = 1;
     int auth_code;
-
-    if (strncmp(command, "$REGISTER$", 10) != 0 && strncmp(command, "$LOGIN$", 7) != 0)
+    while (check == 1)
     {
-        printf("Invalid command.\n");
-    }
-
-    if (strncmp(command, "$REGISTER$", 10) == 0)
-    {
-        auth_code = 1;
-        send(clientSocket, &auth_code, sizeof(auth_code), 0);
-
-        char userName[MAX_SIZE];
-        printf("\nEnter username: ");
-        scanf("%s", userName);
-        send(clientSocket, userName, strlen(userName), 0);
-
-        char password[MAX_SIZE];
-        printf("Enter password: ");
-        scanf("%s", password);
-
-        send(clientSocket, password, strlen(password), 0);
-
-        int userExists;
-        recv(clientSocket, &userExists, sizeof(userExists), 0);
-        if (userExists == 1)
+        printf("-> ");
+        scanf("%s", command);
+        if (strncmp(command, "$REGISTER$", 10) == 0)
         {
-            printf("$ \"%s\"'s ACCOUNT HAS BEEN REGISTERED$\n", userName);
+            auth_code = 1;
+            send(clientSocket, &auth_code, sizeof(auth_code), 0);
+
+            char userName[MAX_SIZE];
+            printf("\nEnter username: ");
+            scanf("%s", userName);
+            send(clientSocket, userName, strlen(userName), 0);
+
+            char password[MAX_SIZE];
+            printf("Enter password: ");
+            scanf("%s", password);
+
+            send(clientSocket, password, strlen(password), 0);
+
+            int userExists;
+            recv(clientSocket, &userExists, sizeof(userExists), 0);
+            if (userExists == 1)
+            {
+                printf("$ \"%s\"'s ACCOUNT HAS BEEN REGISTERED$\n", userName);
+            }
+            else if (userExists == 0)
+            {
+                printf("$ ACCOUNT FOR \"%s\" ALREADY EXISTS$\n", userName);
+            }
+            else
+            {
+                printf("$ ERROR: Invalid response from server $\n");
+            }
+            check = 0;
         }
-        else if (userExists == 0)
+        else if (strncmp(command, "$LOGIN$", 7) == 0)
         {
-            printf("$ ACCOUNT FOR \"%s\" ALREADY EXISTS$\n", userName);
+            auth_code = 2;
+            send(clientSocket, &auth_code, sizeof(auth_code), 0);
+
+            // Authenticate user
+            char userName[MAX_SIZE];
+            printf("Enter username: ");
+            scanf("%s", userName);
+            send(clientSocket, userName, strlen(userName), 0);
+
+            char password[MAX_SIZE];
+            printf("Enter password: ");
+            scanf("%s", password);
+            send(clientSocket, password, strlen(password), 0);
+
+            char response[MAX_SIZE];
+            recv(clientSocket, response, sizeof(response) - 1, 0);
+            response[sizeof(response) - 1] = '\0';
+            printf("Server: %s\n", response);
+
+            if (strcmp(response, "User found") == 0)
+            {
+                printf("\nAvailable Commands:\n\n$UPLOAD$<file-name> for Uploading Data/File\n$DOWNLOAD$<file-name> for Downloading an Uploaded Data/File\n$VIEW$ for View Uploaded Files and there sizes\n$UPDATE$<file-name> for Updating and Existing/Uploaded File\n$DELETE$<file-name> for Deleting a Uploading File\n\n");
+
+                char upload_download_command[512];
+                int chk = 1;
+                while (chk)
+                {
+                    printf("-> ");
+                    scanf("%s", upload_download_command);
+
+                    if (strncmp(upload_download_command, "$UPLOAD$", 8) == 0)
+                    {
+                        handle_Upload(clientSocket, upload_download_command);
+                    }
+                    else if (strncmp(upload_download_command, "$DOWNLOAD$", 10) == 0)
+                    {
+                        handle_Downlaod(clientSocket, upload_download_command);
+                    }
+                    else if (strncmp(upload_download_command, "$VIEW$", 6) == 0)
+                    {
+                        handle_ViewFiles(clientSocket, upload_download_command);
+                    }
+                    else if (strncmp(upload_download_command, "$DELETE$", 8) == 0)
+                    {
+                        handle_Delete_File(clientSocket, upload_download_command);
+                    }
+                    else if (strncmp(upload_download_command, "$UPDATE$", 8) == 0)
+                    {
+                        handle_Update_File(clientSocket, upload_download_command);
+                    }
+                    else
+                    {
+                        printf("Error: Invalid command.\n");
+                        chk = 1;
+                        continue;
+                    }
+                    chk = 0;
+                }
+            }
+            check = 0;
         }
         else
         {
-            printf("$ ERROR: Invalid response from server $\n");
-        }
-    }
-
-    else if (strncmp(command, "$LOGIN$", 7) == 0)
-    {
-        auth_code = 2;
-        send(clientSocket, &auth_code, sizeof(auth_code), 0);
-
-        // Authenticate user
-        char userName[MAX_SIZE];
-        printf("Enter username: ");
-        scanf("%s", userName);
-        send(clientSocket, userName, strlen(userName), 0);
-
-        char password[MAX_SIZE];
-        printf("Enter password: ");
-        scanf("%s", password);
-        send(clientSocket, password, strlen(password), 0);
-
-        char response[MAX_SIZE];
-        recv(clientSocket, response, sizeof(response) - 1, 0);
-        response[sizeof(response) - 1] = '\0';
-        printf("Server: %s\n", response);
-
-        if (strcmp(response, "User found") == 0)
-        {
-            printf("\nAvailable Commands:\n\n$UPLOAD$<file-name> for Uploading Data/File\n$DOWNLOAD$<file-name> for Downloading an Uploaded Data/File\n$View$ for View Uploaded Files and there sizes\n$UPDATE$<file-name> for Updating and Existing/Uploaded File\n$DELETE$<file-name> for Deleting a Uploading File\n\n");
-
-            char upload_download_command[512];
-
-            printf("-> ");
-            scanf("%s", upload_download_command);
-
-            int option;
-            if (strncmp(upload_download_command, "$UPLOAD$", 8) == 0)
-            {
-                handle_Upload(clientSocket, upload_download_command);
-            }
-
-            else if (strncmp(upload_download_command, "$DOWNLOAD$", 10) == 0)
-            {
-                handle_Downlaod(clientSocket, upload_download_command);
-            }
-
-            else if (strncmp(upload_download_command, "$VIEW$", 6) == 0)
-            {
-                handle_ViewFiles(clientSocket, upload_download_command);
-            }
-
-            else if (strncmp(upload_download_command, "$DELETE$", 8) == 0)
-            {
-                handle_Delete_File(clientSocket, upload_download_command);
-            }
-
-            else if (strncmp(upload_download_command, "$UPDATE$", 8) == 0)
-            {
-                handle_Update_File(clientSocket, upload_download_command);
-            }
+            printf("Error: Invalid command.\n");
+            check = 1;
         }
     }
 
