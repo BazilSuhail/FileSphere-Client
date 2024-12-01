@@ -170,10 +170,12 @@ int main()
 
     int auth_code;
 
-    if (strncmp(command, "$REGISTER$", 10) != 0 && strncmp(command, "$LOGIN$", 7) != 0)
+    do
     {
         printf("Invalid command.\n");
-    }
+        printf("-> ");
+        scanf("%s", command);
+    } while (strncmp(command, "$REGISTER$", 10) != 0 && strncmp(command, "$LOGIN$", 7) != 0);
 
     if (strncmp(command, "$REGISTER$", 10) == 0)
     {
@@ -233,38 +235,50 @@ int main()
             printf("\nAvailable Commands:\n\n$UPLOAD$<file-name> for Uploading Data/File\n$DOWNLOAD$<file-name> for Downloading an Uploaded Data/File\n$VIEW$ for View Uploaded Files and there sizes\n$UPDATE$<file-name> for Updating and Existing/Uploaded File\n$DELETE$<file-name> for Deleting a Uploading File\n\n");
 
             char upload_download_command[512];
-
-            printf("-> ");
-            scanf("%s", upload_download_command);
-
-            int option;
-            if (strncmp(upload_download_command, "$UPLOAD$", 8) == 0)
+            int check = 1;
+            do
             {
-                handle_Upload(clientSocket, upload_download_command);
-            }
+                printf("-> ");
+                scanf("%s", upload_download_command);
 
-            else if (strncmp(upload_download_command, "$DOWNLOAD$", 10) == 0)
-            {
-                handle_Downlaod(clientSocket, upload_download_command);
-            }
-
-            else if (strncmp(upload_download_command, "$VIEW$", 6) == 0)
-            {
-                handle_ViewFiles(clientSocket, upload_download_command);
-            }
-
-            else if (strncmp(upload_download_command, "$DELETE$", 8) == 0)
-            {
-                handle_Delete_File(clientSocket, upload_download_command);
-            }
-
-            else if (strncmp(upload_download_command, "$UPDATE$", 8) == 0)
-            {
-                handle_Update_File(clientSocket, upload_download_command);
-            }
+                if (strncmp(upload_download_command, "$UPLOAD$", 8) == 0)
+                {
+                    handle_Upload(clientSocket, upload_download_command);
+                    check = 0;
+                }
+                else if (strncmp(upload_download_command, "$DOWNLOAD$", 10) == 0)
+                {
+                    handle_Downlaod(clientSocket, upload_download_command);
+                    check = 0;
+                }
+                else if (strncmp(upload_download_command, "$VIEW$", 6) == 0)
+                {
+                    handle_ViewFiles(clientSocket, upload_download_command);
+                    check = 0;
+                }
+                else if (strncmp(upload_download_command, "$DELETE$", 8) == 0)
+                {
+                    handle_Delete_File(clientSocket, upload_download_command);
+                    check = 0;
+                }
+                else if (strncmp(upload_download_command, "$UPDATE$", 8) == 0)
+                {
+                    handle_Update_File(clientSocket, upload_download_command);
+                    check = 0;
+                }
+                else if (strncmp(upload_download_command, "exit", 4) == 0)
+                {
+                    printf("Exiting program.\n");
+                    check = 0;
+                    break;
+                }
+                else
+                {
+                    printf("Invalid command. Please try again.\n");
+                }
+            } while (check == 1);
         }
     }
-
     close(clientSocket);
     return 0;
 }
