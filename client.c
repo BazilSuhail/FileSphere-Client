@@ -165,16 +165,15 @@ int main()
 
     char command[512];
 
-    printf("-> ");
-    scanf("%s", command);
-
     int auth_code;
-
+    int count = 0;
     do
     {
-        printf("Invalid command.\n");
+        if(count > 0)
+            printf("Invalid command.\n");
         printf("-> ");
         scanf("%s", command);
+        count++;
     } while (strncmp(command, "$REGISTER$", 10) != 0 && strncmp(command, "$LOGIN$", 7) != 0);
 
     if (strncmp(command, "$REGISTER$", 10) == 0)
