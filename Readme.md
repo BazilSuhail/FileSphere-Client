@@ -7,10 +7,13 @@ A client implementation with for a server handling Queue-Based Reader-Writer Loc
 
 
 ### Project Description
-This project has a C program source code for a client implementation in C such that a client looks after his files uploaded to server and check for the storage he has used ,covering basic implementation of authentication in C. The user can create his account using name and password in the server. After that the user can type in various commands and perform Upload, Download And View queries after logging in to his account.
+Client implementation of the Server (handling Queue-Based Reader-Writer Locking mechanism), allowing the client to download files, look after his files uploaded to the server, and check for his file and data uplaoded to the server and maintaining the allocated storage space to him, covering basic user authentication allowing him to check for storage space covering a particular user authentication in C. The user can create his account using name and password in the server. After that the user can type in various commands and perform Upload, Download And View queries after logging in to his account.
+
+- This project has a C program source code for a client implementation in C such that a client looks after his files uploaded to server and check for the storage he has used ,covering basic implementation of authentication in C.
 
 - For this C code use make file to build it and then the C program will be compiled into main.exe.
 
+---
 ### 🤖 Tech Stack 
 <a href="#"> 
 <img alt="C Language" src="https://img.shields.io/badge/C%20Language-%2300599C.svg?&style=for-the-badge&logo=C&logoColor=white"/>
